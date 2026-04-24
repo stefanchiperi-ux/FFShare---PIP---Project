@@ -83,7 +83,17 @@ public class LoginController {
             showAlert("Eroare", "Toate câmpurile sunt obligatorii pentru înregistrare!");
             return;
         }
-
+        
+        if (name.length() < 6 || pass.length() < 6) {
+        	showAlert("Eroare", "Username-ul si parola trebuie sa contina minim 6 caractere!");
+        	return;
+        }
+        
+        if (!pass.matches(".*\\d.*") || !pass.matches(".*[^a-zA-Z0-9].*")) {
+        	showAlert("Eroare", "Parola trebuie sa contina minim un caracter special si minim o cifra!");
+        	return;
+        }
+        
         if (DatabaseHandler.registerUser(name, user, pass)) {
             showAlert("Succes", "Cont creat cu succes! Acum te poți loga.");
             toggleMode(); // Trecem automat înapoi la Login
