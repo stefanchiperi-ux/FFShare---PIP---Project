@@ -61,16 +61,34 @@ public class LoginController {
         String user = userField.getText();
         String pass = passField.getText();
 
-        if (user.isEmpty() || pass.isEmpty()) {
-            showAlert("Eroare", "Te rugăm să completezi utilizatorul și parola!");
-            return;
-        }
+        String fullName = DatabaseHandler.getFullName(user, pass); // Luăm numele din DB
 
-        if (DatabaseHandler.validateLogin(user, pass)) {
-            System.out.println("Autentificare reușită!");
-            incarcaDashboard();
+        if (fullName != null) {
+            incarcaDashboard(fullName); // Trimitem numele mai departe
         } else {
             showAlert("Eroare", "Utilizator sau parolă incorectă!");
+        }
+    }
+    
+    private void incarcaDashboard(String fullName) {
+        try {
+            var resource = getClass().getResource("/interfata_drive/Dashboard.fxml");
+            if (resource == null) throw new IOException("Dashboard.fxml nu a fost găsit!");
+
+            FXMLLoader loader = new FXMLLoader(resource);
+            Parent root = loader.load();
+
+            // AICI E SECRETUL: Luăm controller-ul ferestrei care tocmai se încarcă
+            DashboardController dashboardController = loader.getController();
+            dashboardController.setUserData(fullName); // Îi dăm numele utilizatorului
+
+            Stage stage = (Stage) loginBtn.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("FFShare - Bine ai venit, " + fullName);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Eroare", "Nu s-a putut încărca Dashboard-ul.");
         }
     }
 
