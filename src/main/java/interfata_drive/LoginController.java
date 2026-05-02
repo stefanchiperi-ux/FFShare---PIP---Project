@@ -64,24 +64,40 @@ public class LoginController {
         String user = userField.getText();
         String pass = passField.getText();
 
-        if (user.isEmpty() || pass.isEmpty()) {
-            showAlert("Eroare", "Te rugăm să completezi utilizatorul și parola!");
-            return;
-        }
+        String fullName = DatabaseHandler.getFullName(user, pass); // Luăm numele din DB
 
-        if (DatabaseHandler.validateLogin(user, pass)) {
-            System.out.println("Autentificare reușită!");
-            
+        if (fullName != null) {
             Session.setClient(new Client(user));
             try {
 				Session.getClient().connect();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-            
-            incarcaDashboard();
+            incarcaDashboard(fullName); // Trimitem numele mai departe
         } else {
             showAlert("Eroare", "Utilizator sau parolă incorectă!");
+        }
+    }
+    
+    private void incarcaDashboard(String fullName) {
+        try {
+            var resource = getClass().getResource("/interfata_drive/Dashboard.fxml");
+            if (resource == null) throw new IOException("Dashboard.fxml nu a fost găsit!");
+
+            FXMLLoader loader = new FXMLLoader(resource);
+            Parent root = loader.load();
+
+            // AICI E SECRETUL: Luăm controller-ul ferestrei care tocmai se încarcă
+            DashboardController dashboardController = loader.getController();
+            dashboardController.setUserData(fullName); // Îi dăm numele utilizatorului
+
+            Stage stage = (Stage) loginBtn.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setTitle("FFShare - Bine ai venit, " + fullName);
+            stage.centerOnScreen();
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Eroare", "Nu s-a putut încărca Dashboard-ul.");
         }
     }
 
@@ -94,7 +110,17 @@ public class LoginController {
             showAlert("Eroare", "Toate câmpurile sunt obligatorii pentru înregistrare!");
             return;
         }
-
+        
+        if (name.length() < 6 || pass.length() < 6) {
+        	showAlert("Eroare", "Username-ul si parola trebuie sa contina minim 6 caractere!");
+        	return;
+        }
+        
+        if (!pass.matches(".*\\d.*") || !pass.matches(".*[^a-zA-Z0-9].*")) {
+        	showAlert("Eroare", "Parola trebuie sa contina minim un caracter special si minim o cifra!");
+        	return;
+        }
+        
         if (DatabaseHandler.registerUser(name, user, pass)) {
             showAlert("Succes", "Cont creat cu succes! Acum te poți loga.");
             toggleMode(); // Trecem automat înapoi la Login
