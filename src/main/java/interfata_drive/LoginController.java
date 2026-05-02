@@ -12,6 +12,9 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
 import java.io.IOException;
 
+import client.Client;
+import core.Session;
+
 public class LoginController {
 
     @FXML private TextField nameField; // fx:id="nameField" în Scene Builder
@@ -68,6 +71,14 @@ public class LoginController {
 
         if (DatabaseHandler.validateLogin(user, pass)) {
             System.out.println("Autentificare reușită!");
+            
+            Session.setClient(new Client(user));
+            try {
+				Session.getClient().connect();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+            
             incarcaDashboard();
         } else {
             showAlert("Eroare", "Utilizator sau parolă incorectă!");
