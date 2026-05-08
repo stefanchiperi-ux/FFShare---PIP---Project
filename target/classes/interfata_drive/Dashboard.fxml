@@ -115,16 +115,16 @@
                </children>
             </HBox>
 
-            <ListView style="-fx-background-color: #F8F9FA;" VBox.vgrow="ALWAYS" />
+            <ListView fx:id="messageList" style="-fx-background-color: #F8F9FA;" VBox.vgrow="ALWAYS" />
 
             <HBox alignment="CENTER" prefHeight="80.0" spacing="10.0" style="-fx-border-color: #ECEFF1; -fx-border-width: 1 0 0 0;">
                <padding>
                   <Insets left="15.0" right="15.0" />
                </padding>
                <children>
-                  <TextField prefHeight="45.0" promptText="Scrie un mesaj..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 10;" HBox.hgrow="ALWAYS" />
+                  <TextField fx:id="writeMessageField" prefHeight="45.0" promptText="Scrie un mesaj..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 10;" HBox.hgrow="ALWAYS" />
 
-                  <Button prefHeight="45.0" prefWidth="50.0" style="-fx-background-color: linear-gradient(to right, #2962FF, #448AFF); -fx-text-fill: white; -fx-background-radius: 20; -fx-font-weight: bold;" text="➤" />
+                  <Button fx:id="sendBtn" prefHeight="45.0" prefWidth="50.0" style="-fx-background-color: linear-gradient(to right, #2962FF, #448AFF); -fx-text-fill: white; -fx-background-radius: 20; -fx-font-weight: bold;" text="➤" />
                </children>
             </HBox>
          </children>
