@@ -51,4 +51,20 @@ public class DatabaseHandler {
             return false;
         }
     }
+    
+    public static String getFullName(String user, String pass) {
+        String sql = "SELECT fullname FROM users WHERE username = ? AND password = ?";
+        try (Connection conn = getConnection(); 
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, user);
+            pstmt.setString(2, pass);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("fullname");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null; // Returnează null dacă datele sunt greșite
+    }
 }
