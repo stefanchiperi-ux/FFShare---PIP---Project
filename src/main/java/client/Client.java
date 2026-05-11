@@ -7,10 +7,9 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.function.Consumer;
 
-import core.Utils;
 
 public class Client {
-    private String host = "localhost";
+    private String host = "172.20.10.11";
     private int port = 5000;
     private String username;
 
@@ -31,7 +30,6 @@ public class Client {
 
     public Client(String username) {
         this.username = username;
-        this.host = Utils.getLocalIpAddress();
     }
 
     public void setOnMessageReceived(Consumer<String> onMessageReceived) {
