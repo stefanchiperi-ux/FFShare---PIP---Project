@@ -3,10 +3,11 @@ package server;
 public class ServerMain {
 
 	public static void main(String[] args) {
-		int port = 5000;
-		Server server = new Server(port);
-		
-		server.start();
+		Server chatServer = new Server(5000);
+        FileServer fileServer = new FileServer(5001);
+
+        new Thread(() -> chatServer.start()).start();
+        new Thread(() -> fileServer.start()).start();
 	}
 
 }
