@@ -1,5 +1,6 @@
 package interfata_drive;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -10,6 +11,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
+
 import java.io.IOException;
 
 import client.Client;
@@ -17,21 +19,19 @@ import core.Session;
 
 public class LoginController {
 
-    @FXML private TextField nameField; // fx:id="nameField" în Scene Builder
-    @FXML private TextField userField; // fx:id="userField"
-    @FXML private PasswordField passField; // fx:id="passField"
-    @FXML private Button loginBtn; // fx:id="loginBtn"
-    @FXML private Button toggleBtn; // fx:id="toggleBtn" (Butonul sub cel de Login)
+    @FXML private TextField nameField;
+    @FXML private TextField userField;
+    @FXML private PasswordField passField;
+    @FXML private Button loginBtn;
+    @FXML private Button toggleBtn;
 
     private boolean isRegisterMode = false;
 
     @FXML
     public void initialize() {
-        // La început suntem pe modul "Conectare", deci ascundem câmpul de nume
         nameField.setVisible(false);
         nameField.setManaged(false);
 
-        // Setăm acțiunea pentru butonul principal
         loginBtn.setOnAction(event -> {
             if (isRegisterMode) {
                 handleRegister();
@@ -40,13 +40,12 @@ public class LoginController {
             }
         });
 
-        // Setăm acțiunea pentru butonul de schimbare mod
         toggleBtn.setOnAction(event -> toggleMode());
     }
 
     private void toggleMode() {
         isRegisterMode = !isRegisterMode;
-        
+
         if (isRegisterMode) {
             nameField.setVisible(true);
             nameField.setManaged(true);
@@ -64,41 +63,52 @@ public class LoginController {
         String user = userField.getText();
         String pass = passField.getText();
 
-        String fullName = DatabaseHandler.getFullName(user, pass); // Luăm numele din DB
+        if (user.isEmpty() || pass.isEmpty()) {
+            showAlert("Eroare", "Username-ul și parola sunt obligatorii!");
+            return;
+        }
 
-        if (fullName != null) {
-            Session.setClient(new Client(user));
+        loginBtn.setDisable(true);
+        toggleBtn.setDisable(true);
+
+        Thread loginThread = new Thread(() -> {
+            String fullName = DatabaseHandler.getFullName(user, pass);
+
+            if (fullName == null) {
+                Platform.runLater(() -> {
+                    loginBtn.setDisable(false);
+                    toggleBtn.setDisable(false);
+                    showAlert("Eroare", "Utilizator sau parolă incorectă!");
+                });
+                return;
+            }
+
+//            Client client = new Client(fullName);
+
             try {
-				Session.getClient().connect();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-            incarcaDashboard(fullName); // Trimitem numele mai departe
-        } else {
-            showAlert("Eroare", "Utilizator sau parolă incorectă!");
-        }
-    }
-    
-    private void incarcaDashboard(String fullName) {
-        try {
-            var resource = getClass().getResource("/interfata_drive/Dashboard.fxml");
-            if (resource == null) throw new IOException("Dashboard.fxml nu a fost găsit!");
+//                client.connect();
 
-            FXMLLoader loader = new FXMLLoader(resource);
-            Parent root = loader.load();
+//                Session.setClient(client);
 
-            // AICI E SECRETUL: Luăm controller-ul ferestrei care tocmai se încarcă
-            DashboardController dashboardController = loader.getController();
-            dashboardController.setUserData(fullName); // Îi dăm numele utilizatorului
+                Platform.runLater(() -> {
+                    loginBtn.setDisable(false);
+                    toggleBtn.setDisable(false);
+                    incarcaDashboard(fullName);
+                });
 
-            Stage stage = (Stage) loginBtn.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("FFShare - Bine ai venit, " + fullName);
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
-            showAlert("Eroare", "Nu s-a putut încărca Dashboard-ul.");
-        }
+            } catch (Exception e) {
+                e.printStackTrace();
+
+                Platform.runLater(() -> {
+                    loginBtn.setDisable(false);
+                    toggleBtn.setDisable(false);
+                    showAlert("Eroare", "Nu s-a putut conecta la server!");
+                });
+            }
+        });
+
+        loginThread.setDaemon(true);
+        loginThread.start();
     }
 
     private void handleRegister() {
@@ -110,39 +120,62 @@ public class LoginController {
             showAlert("Eroare", "Toate câmpurile sunt obligatorii pentru înregistrare!");
             return;
         }
-        
-        if (name.length() < 6 || pass.length() < 6) {
-        	showAlert("Eroare", "Username-ul si parola trebuie sa contina minim 6 caractere!");
-        	return;
+
+        if (user.length() < 6 || pass.length() < 6) {
+            showAlert("Eroare", "Username-ul și parola trebuie să conțină minim 6 caractere!");
+            return;
         }
-        
+
         if (!pass.matches(".*\\d.*") || !pass.matches(".*[^a-zA-Z0-9].*")) {
-        	showAlert("Eroare", "Parola trebuie sa contina minim un caracter special si minim o cifra!");
-        	return;
+            showAlert("Eroare", "Parola trebuie să conțină minim o cifră și minim un caracter special!");
+            return;
         }
-        
-        if (DatabaseHandler.registerUser(name, user, pass)) {
-            showAlert("Succes", "Cont creat cu succes! Acum te poți loga.");
-            toggleMode(); // Trecem automat înapoi la Login
-        } else {
-            showAlert("Eroare", "Utilizatorul există deja!");
-        }
+
+        loginBtn.setDisable(true);
+        toggleBtn.setDisable(true);
+
+        Thread registerThread = new Thread(() -> {
+            boolean success = DatabaseHandler.registerUser(name, user, pass);
+
+            Platform.runLater(() -> {
+                loginBtn.setDisable(false);
+                toggleBtn.setDisable(false);
+
+                if (success) {
+                    showAlert("Succes", "Cont creat cu succes! Acum te poți loga.");
+                    toggleMode();
+                } else {
+                    showAlert("Eroare", "Utilizatorul există deja!");
+                }
+            });
+        });
+
+        registerThread.setDaemon(true);
+        registerThread.start();
     }
 
-    private void incarcaDashboard() {
+    private void incarcaDashboard(String fullName) {
         try {
-            // Încarcă Dashboard.fxml (asigură-te că e în src/main/resources/interfata_drive/)
             var resource = getClass().getResource("/interfata_drive/Dashboard.fxml");
-            if (resource == null) throw new IOException("Dashboard.fxml nu a fost găsit!");
 
-            Parent root = FXMLLoader.load(resource);
+            if (resource == null) {
+                throw new IOException("Dashboard.fxml nu a fost găsit!");
+            }
+
+            FXMLLoader loader = new FXMLLoader(resource);
+            Parent root = loader.load();
+
+            DashboardController dashboardController = loader.getController();
+            dashboardController.setUserData(fullName);
+
             Stage stage = (Stage) loginBtn.getScene().getWindow();
             stage.setScene(new Scene(root));
-            stage.setTitle("FFShare - Bine ai venit");
+            stage.setTitle("FFShare - Bine ai venit, " + fullName);
             stage.centerOnScreen();
+
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert("Eroare", "Nu s-a putut încărca ecranul de bun venit.");
+            showAlert("Eroare", "Nu s-a putut încărca Dashboard-ul.");
         }
     }
 
