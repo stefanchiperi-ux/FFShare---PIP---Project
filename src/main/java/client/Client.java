@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.function.Consumer;
 
@@ -37,7 +38,8 @@ public class Client {
     }
 
     public void connect() throws IOException {
-        this.socket = new Socket(host, port);
+        this.socket = new Socket();
+        this.socket.connect(new InetSocketAddress(host, port), 1500);
 
         this.out = new PrintWriter(socket.getOutputStream(), true);
 
@@ -79,6 +81,10 @@ public class Client {
         if (out != null) {
             out.println(text);
         }
+    }
+
+    public boolean isConnected() {
+        return socket != null && socket.isConnected() && !socket.isClosed() && out != null;
     }
 
     public void close() throws IOException {
