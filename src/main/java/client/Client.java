@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 
 
 public class Client {
-    private String host = "172.20.10.11";
+    private String host = "localhost";
     private int port = 5000;
     private String username;
 

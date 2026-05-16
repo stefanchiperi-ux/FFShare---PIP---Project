@@ -62,7 +62,9 @@ public class Server {
         String fullMessage = senderUsername + ": " + message;
 
         for (ClientHandler client : clients) {
-            client.send(fullMessage);
+        	if (!client.getUsername().equals(senderUsername)) {
+                client.send(fullMessage);
+            }
         }
     }
 
