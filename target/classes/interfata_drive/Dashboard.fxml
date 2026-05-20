@@ -59,7 +59,11 @@
             <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Recente" />
             <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Favorite" />
             <Region VBox.vgrow="ALWAYS" />
-            <Button prefHeight="50.0" prefWidth="220.0" style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 25; -fx-background-radius: 25; -fx-text-fill: #2962FF;" text="+ Încarcă fișier" />
+            <Button fx:id="addFileBtn"
+        prefHeight="50.0"
+        prefWidth="220.0"
+        style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 25; -fx-background-radius: 25; -fx-text-fill: #2962FF;"
+        text="+ Încarcă fișier" />
          </children>
       </VBox>
    </left>

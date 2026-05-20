@@ -16,6 +16,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.stage.FileChooser;
+import java.io.File;
+import java.nio.file.Path;
 
 import java.io.IOException;
 
@@ -27,6 +30,7 @@ public class DashboardController {
     @FXML private Button sendBtn;
     @FXML private ScrollPane chatScrollPane;
     @FXML private VBox chatMessagesBox;
+    @FXML private Button addFileBtn;
 
     private final ApiKeyStore apiKeyStore = new ApiKeyStore();
     private final GroqAiService groqAiService = new GroqAiService();
@@ -40,6 +44,7 @@ public class DashboardController {
         }
 
         sendBtn.setOnAction(event -> sendMessageAction());
+        addFileBtn.setOnAction(event -> handleAddFileAction());
         writeMessageField.setOnAction(event -> sendMessageAction());
 
         chatMessagesBox.heightProperty().addListener((obs, oldValue, newValue) -> {
@@ -198,5 +203,26 @@ public class DashboardController {
         FRIEND,
         AI,
         SYSTEM
+    }
+    
+    
+    private void handleAddFileAction() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Alege fișier");
+
+        File selectedFile = fileChooser.showOpenDialog(addFileBtn.getScene().getWindow());
+
+        if (selectedFile == null) {
+            return;
+        }
+
+        Path filePath = selectedFile.toPath().toAbsolutePath().normalize();
+        String fileName = filePath.getFileName().toString();
+
+        if (Session.getCurrentUser() != null) {
+            Session.getCurrentUser().addFile(filePath);
+        }
+
+        addMessage("Fișier adăugat: " + fileName, MessageSender.SYSTEM);
     }
 }
