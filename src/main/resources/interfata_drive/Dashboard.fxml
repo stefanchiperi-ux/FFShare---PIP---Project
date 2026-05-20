@@ -76,26 +76,13 @@
                   <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
                </padding>
                <children>
-                  <Label text="Foldere" textFill="#263238">
+                  <Label text="Fișierele mele!" textFill="#263238">
                      <font>
                         <Font name="System Bold" size="20.0" />
                      </font>
                   </Label>
 
-                  <FlowPane hgap="25.0" vgap="25.0">
-                     <children>
-                        <VBox alignment="CENTER" prefHeight="130.0" prefWidth="150.0" style="-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);">
-                           <children>
-                              <Label text="📁">
-                                 <font>
-                                    <Font size="45.0" />
-                                 </font>
-                              </Label>
-                              <Label text="Documente" textFill="#37474F" />
-                           </children>
-                        </VBox>
-                     </children>
-                  </FlowPane>
+                  <FlowPane fx:id="filesFlowPane" hgap="25.0" vgap="25.0" />
                </children>
             </VBox>
          </content>

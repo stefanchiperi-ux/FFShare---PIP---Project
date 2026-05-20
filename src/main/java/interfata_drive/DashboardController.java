@@ -3,6 +3,7 @@ package interfata_drive;
 import ai.ApiKeyStore;
 import ai.GroqAiService;
 import core.Session;
+import core.UserFile;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -13,6 +14,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
@@ -31,6 +33,7 @@ public class DashboardController {
     @FXML private ScrollPane chatScrollPane;
     @FXML private VBox chatMessagesBox;
     @FXML private Button addFileBtn;
+    @FXML private FlowPane filesFlowPane;
 
     private final ApiKeyStore apiKeyStore = new ApiKeyStore();
     private final GroqAiService groqAiService = new GroqAiService();
@@ -221,8 +224,47 @@ public class DashboardController {
 
         if (Session.getCurrentUser() != null) {
             Session.getCurrentUser().addFile(filePath);
+            refreshFilesView();
         }
 
         addMessage("Fișier adăugat: " + fileName, MessageSender.SYSTEM);
+    }
+    
+    private void refreshFilesView() {
+    	filesFlowPane.getChildren().clear();
+    	
+    	if (Session.getCurrentUser() == null) {
+            return;
+        }
+    	
+    	for(UserFile userFile : Session.getCurrentUser().getFiles()) {
+    		VBox fileCard = createFileCard(userFile);
+            filesFlowPane.getChildren().add(fileCard); 
+    	}
+    }
+    
+    
+    private VBox createFileCard(UserFile file) {
+    	Label iconLabel = new Label("📄");
+        iconLabel.setStyle("-fx-font-size: 42px;");
+
+        Label nameLabel = new Label(file.getName());
+        nameLabel.setWrapText(true);
+        nameLabel.setMaxWidth(130);
+        nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
+
+        VBox fileCard = new VBox(8);
+        fileCard.setAlignment(Pos.CENTER);
+        fileCard.setPrefWidth(150);
+        fileCard.setPrefHeight(130);
+        fileCard.setStyle(
+                "-fx-background-color: white;" +
+                "-fx-background-radius: 12;" +
+                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
+        );
+
+        fileCard.getChildren().addAll(iconLabel, nameLabel);
+
+        return fileCard;
     }
 }
