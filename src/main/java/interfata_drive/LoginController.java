@@ -83,12 +83,12 @@ public class LoginController {
                 return;
             }
 
-//            Client client = new Client(fullName);
+            Client client = new Client(fullName);
 
             try {
-//                client.connect();
+                client.connect();
 
-//                Session.setClient(client);
+                Session.setClient(client);
 
                 Platform.runLater(() -> {
                     loginBtn.setDisable(false);
