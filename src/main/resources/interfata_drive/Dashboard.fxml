@@ -77,11 +77,17 @@
                <children>
                   <VBox fx:id="filesPage" spacing="30.0">
                      <children>
-                        <Label text="Fisierele mele" textFill="#263238">
-                           <font>
-                              <Font name="System Bold" size="20.0" />
-                           </font>
-                        </Label>
+                        <HBox alignment="CENTER_LEFT" spacing="15.0">
+                           <children>
+                              <Label text="Fisierele mele" textFill="#263238">
+                                 <font>
+                                    <Font name="System Bold" size="20.0" />
+                                 </font>
+                              </Label>
+                              <Region HBox.hgrow="ALWAYS" />
+                              <Button fx:id="refreshFilesBtn" prefHeight="38.0" prefWidth="110.0" style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 18; -fx-background-radius: 18; -fx-text-fill: #2962FF;" text="Refresh" />
+                           </children>
+                        </HBox>
                         <FlowPane fx:id="filesFlowPane" hgap="25.0" vgap="25.0" />
                      </children>
                   </VBox>

@@ -102,7 +102,7 @@ public class Client {
                             onFileReceived.accept(receivedFile);
                         }
 
-                        handleReceivedMessage("__SERVER__|File received: " + receivedFile.getName());
+                        handleReceivedMessage("__SERVER__|Fisier descarcat in: " + receivedFile.getAbsolutePath());
                     } else if (type.equals("FILES_LIST")) {
                         int count = in.readInt();
                         List<String> files = new ArrayList<>();
@@ -211,6 +211,21 @@ public class Client {
         }
     }
 
+    public synchronized void requestFileDownload(String filePath) {
+        if (out == null || filePath == null || filePath.isBlank()) {
+            return;
+        }
+
+        try {
+            out.writeUTF("DOWNLOAD_FILE");
+            out.writeUTF(filePath);
+            out.flush();
+            System.out.println("File download request sent to server: " + filePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private File receiveFile(String fileName, long fileSize) throws IOException {
         Files.createDirectories(downloadDirectory);
 
@@ -233,6 +248,9 @@ public class Client {
                 remainingBytes -= bytesRead;
             }
         }
+        
+        
+        System.out.println("Saving downloaded file to: " + outputPath.toAbsolutePath());
 
         return outputPath.toFile();
     }
@@ -281,4 +299,6 @@ public class Client {
             socket.close();
         }
     }
+    
+    
 }

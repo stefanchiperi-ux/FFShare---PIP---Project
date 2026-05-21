@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -149,6 +150,16 @@ public class Server {
 
                     System.out.println(username + " requested file list");
                     client.sendFileList(files);
+                } else if (type.equals("DOWNLOAD_FILE")) {
+                    String filePath = in.readUTF();
+                    Path requestedFile = resolveServerFile(filePath);
+
+                    if (requestedFile == null) {
+                        client.sendMessage("__SERVER__|Fisierul nu exista pe server: " + filePath);
+                    } else {
+                        System.out.println(username + " downloaded file: " + requestedFile.toAbsolutePath());
+                        client.sendFile(requestedFile, requestedFile.getFileName().toString());
+                    }
                 } else {
                     System.out.println("Unknown packet type from " + username + ": " + type);
                 }
@@ -219,6 +230,21 @@ public class Server {
         }
 
         return fileNames;
+    }
+
+    private Path resolveServerFile(String filePath) throws IOException {
+        if (filePath == null || filePath.isBlank()) {
+            return null;
+        }
+
+        Path baseDirectory = serverFilesDirectory.toAbsolutePath().normalize();
+        Path requestedPath = baseDirectory.resolve(filePath).normalize();
+
+        if (!requestedPath.startsWith(baseDirectory) || !Files.isRegularFile(requestedPath)) {
+            return null;
+        }
+
+        return requestedPath;
     }
 
     private Path getUniquePath(Path originalPath) {
@@ -298,6 +324,25 @@ public class Server {
 
                 for (String file : files) {
                     out.writeUTF(file);
+                }
+
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public synchronized void sendFile(Path file, String fileName) {
+            try (InputStream inputStream = Files.newInputStream(file)) {
+                out.writeUTF("FILE");
+                out.writeUTF(fileName);
+                out.writeLong(Files.size(file));
+
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
                 }
 
                 out.flush();

@@ -3,7 +3,6 @@ package interfata_drive;
 import ai.ApiKeyStore;
 import ai.GroqAiService;
 import core.Session;
-import core.UserFile;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -32,9 +31,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.HashMap;
-import java.util.Map;
-
 import java.util.List;
+import java.util.Map;
 
 public class DashboardController {
 
@@ -43,6 +41,7 @@ public class DashboardController {
     @FXML private Button sendBtn;
     @FXML private ListView<ChatMessage> messageList;
     @FXML private Button addFileBtn;
+    @FXML private Button refreshFilesBtn;
     @FXML private FlowPane filesFlowPane;
     @FXML private Button filesBtn;
     @FXML private Button profileBtn;
@@ -63,14 +62,13 @@ public class DashboardController {
 
         if (Session.getClient() != null) {
             Session.getClient().setOnMessageReceived(message -> Platform.runLater(() -> handleServerMessage(message)));
+            Session.getClient().setOnFileListReceived(files -> Platform.runLater(() -> refreshFilesView(files)));
+            requestFilesRefresh();
         }
-        
-        Session.getClient().setOnFileListReceived(files ->
-        Platform.runLater(() -> refreshFilesView(files)));
-        Session.getClient().requestFileList();
 
         sendBtn.setOnAction(event -> sendMessageAction());
         addFileBtn.setOnAction(event -> handleAddFileAction());
+        refreshFilesBtn.setOnAction(event -> requestFilesRefresh());
         writeMessageField.setOnAction(event -> sendMessageAction());
 
         filesBtn.setOnAction(event -> showFilesPage());
@@ -78,7 +76,6 @@ public class DashboardController {
         chooseProfileImageBtn.setOnAction(event -> chooseProfileImage());
 
         showFilesPage();
-        refreshFilesView();
         messageList.getItems().add(ChatMessage.server("Scrie /ai urmat de intrebare pentru asistent sau /api key cheia_ta_groq pentru conectare."));
     }
 
@@ -347,78 +344,85 @@ public class DashboardController {
         Path filePath = selectedFile.toPath().toAbsolutePath().normalize();
         String fileName = filePath.getFileName().toString();
 
-        if (Session.getCurrentUser() != null) {
-            Session.getCurrentUser().addFile(filePath);
-            Session.getClient().sendFile(selectedFile);
-            Session.getClient().requestFileList();
-            refreshFilesView();
+        if (Session.getClient() == null || !Session.getClient().isConnected()) {
+            messageList.getItems().add(ChatMessage.server("Mod offline: fisierul nu a fost trimis catre server."));
+            return;
         }
 
-        if (Session.getClient() != null && Session.getClient().isConnected()) {
-            Thread uploadThread = new Thread(() -> Session.getClient().sendFile(selectedFile));
-            uploadThread.setDaemon(true);
-            uploadThread.start();
-        }
+        Thread uploadThread = new Thread(() -> {
+            Session.getClient().sendFile(selectedFile);
+            Session.getClient().requestFileList();
+        });
+        uploadThread.setDaemon(true);
+        uploadThread.start();
 
         messageList.getItems().add(ChatMessage.server("Fisier adaugat: " + fileName));
     }
 
-    private void refreshFilesView() {
-        filesFlowPane.getChildren().clear();
-
-        if (Session.getCurrentUser() == null) {
+    private void requestFilesRefresh() {
+        if (Session.getClient() == null || !Session.getClient().isConnected()) {
+            messageList.getItems().add(ChatMessage.server("Nu esti conectat la server pentru refresh."));
             return;
         }
 
-        for (UserFile userFile : Session.getCurrentUser().getFiles()) {
-            filesFlowPane.getChildren().add(createFileCard(userFile));
-        }
+        Session.getClient().requestFileList();
     }
 
-    private VBox createFileCard(UserFile file) {
-        Label iconLabel = new Label("📄");
-        iconLabel.setStyle("-fx-font-size: 42px;");
+    private void handleDownloadFile(String filePath) {
+        if (Session.getClient() == null || !Session.getClient().isConnected()) {
+            messageList.getItems().add(ChatMessage.server("Nu esti conectat la server pentru download."));
+            return;
+        }
 
-        Label nameLabel = new Label(file.getName());
-        nameLabel.setWrapText(true);
-        nameLabel.setMaxWidth(130);
-        nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
+        Thread downloadThread = new Thread(() -> Session.getClient().requestFileDownload(filePath));
+        downloadThread.setDaemon(true);
+        downloadThread.start();
 
-        VBox fileCard = new VBox(8);
-        fileCard.setAlignment(Pos.CENTER);
-        fileCard.setPrefWidth(150);
-        fileCard.setPrefHeight(130);
-        fileCard.setStyle(
-                "-fx-background-color: white;" +
-                "-fx-background-radius: 12;" +
-                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
-        );
-
-        fileCard.getChildren().addAll(iconLabel, nameLabel);
-        return fileCard;
+        messageList.getItems().add(ChatMessage.server("Se descarca: " + getDisplayFileName(filePath)));
     }
     
-    private VBox createFileCard(String fileName) {
+    private VBox createFileCard(String filePath) {
         Label iconLabel = new Label("📄");
         iconLabel.setStyle("-fx-font-size: 42px;");
 
-        Label nameLabel = new Label(fileName);
+        Label nameLabel = new Label(getDisplayFileName(filePath));
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(130);
         nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
 
+        Label ownerLabel = new Label(getOwnerLabel(filePath));
+        ownerLabel.setWrapText(true);
+        ownerLabel.setMaxWidth(130);
+        ownerLabel.setStyle("-fx-text-fill: #78909C; -fx-font-size: 11px;");
+
+        Button downloadButton = new Button("Download");
+        downloadButton.setPrefHeight(30);
+        downloadButton.setPrefWidth(105);
+        downloadButton.setStyle("-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 15;");
+        downloadButton.setOnAction(event -> handleDownloadFile(filePath));
+
         VBox fileCard = new VBox(8);
         fileCard.setAlignment(Pos.CENTER);
         fileCard.setPrefWidth(150);
-        fileCard.setPrefHeight(130);
+        fileCard.setPrefHeight(170);
         fileCard.setStyle(
                 "-fx-background-color: white;" +
                 "-fx-background-radius: 12;" +
                 "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
         );
 
-        fileCard.getChildren().addAll(iconLabel, nameLabel);
+        fileCard.getChildren().addAll(iconLabel, nameLabel, ownerLabel, downloadButton);
         return fileCard;
+    }
+
+    private String getDisplayFileName(String filePath) {
+        int separatorIndex = filePath.lastIndexOf('/');
+        return separatorIndex >= 0 ? filePath.substring(separatorIndex + 1) : filePath;
+    }
+
+    private String getOwnerLabel(String filePath) {
+        int separatorIndex = filePath.indexOf('/');
+        return separatorIndex > 0 ? "de la " + filePath.substring(0, separatorIndex) : "server";
     }
 
     private void showAlert(String title, String message) {
@@ -524,8 +528,18 @@ public class DashboardController {
     private void refreshFilesView(List<String> files) {
         filesFlowPane.getChildren().clear();
 
+        if (files == null || files.isEmpty()) {
+            Label emptyLabel = new Label("Nu exista fisiere pe server.");
+            emptyLabel.setStyle("-fx-text-fill: #607D8B; -fx-font-size: 14px;");
+            filesFlowPane.getChildren().add(emptyLabel);
+            return;
+        }
+
         for (String file : files) {
             filesFlowPane.getChildren().add(createFileCard(file));
         }
     }
+    
+    
+
 }
