@@ -143,6 +143,7 @@ public class Server {
                     System.out.println(username + " uploaded file: " + savedFile.toAbsolutePath());
                     client.sendMessage("__SERVER__|File uploaded successfully: " + savedFile.getFileName());
                     broadcastServerMessage(username + " uploaded a file on the server: " + savedFile.getFileName());
+                    broadcastFileList();
                 } else if (type.equals("LIST_FILES")) {
                     List<String> files = getServerFilesList();
 
@@ -303,6 +304,14 @@ public class Server {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+    
+    private void broadcastFileList() throws IOException {
+    	List<String> files = getServerFilesList();
+
+        for (ClientHandler client : clients) {
+            client.sendFileList(files);
         }
     }
 }

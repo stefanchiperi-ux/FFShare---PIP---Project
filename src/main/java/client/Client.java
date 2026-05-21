@@ -18,7 +18,7 @@ import java.util.function.Consumer;
 
 public class Client {
 
-    private String host = "localhost";
+    private String host = "172.20.10.11";
     private int port = 5000;
     private String username;
 

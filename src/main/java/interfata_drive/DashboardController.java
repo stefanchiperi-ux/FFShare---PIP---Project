@@ -34,6 +34,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import java.util.List;
+
 public class DashboardController {
 
     @FXML private Label userNameLabel;
@@ -62,6 +64,10 @@ public class DashboardController {
         if (Session.getClient() != null) {
             Session.getClient().setOnMessageReceived(message -> Platform.runLater(() -> handleServerMessage(message)));
         }
+        
+        Session.getClient().setOnFileListReceived(files ->
+        Platform.runLater(() -> refreshFilesView(files)));
+        Session.getClient().requestFileList();
 
         sendBtn.setOnAction(event -> sendMessageAction());
         addFileBtn.setOnAction(event -> handleAddFileAction());
@@ -343,6 +349,8 @@ public class DashboardController {
 
         if (Session.getCurrentUser() != null) {
             Session.getCurrentUser().addFile(filePath);
+            Session.getClient().sendFile(selectedFile);
+            Session.getClient().requestFileList();
             refreshFilesView();
         }
 
@@ -372,6 +380,29 @@ public class DashboardController {
         iconLabel.setStyle("-fx-font-size: 42px;");
 
         Label nameLabel = new Label(file.getName());
+        nameLabel.setWrapText(true);
+        nameLabel.setMaxWidth(130);
+        nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
+
+        VBox fileCard = new VBox(8);
+        fileCard.setAlignment(Pos.CENTER);
+        fileCard.setPrefWidth(150);
+        fileCard.setPrefHeight(130);
+        fileCard.setStyle(
+                "-fx-background-color: white;" +
+                "-fx-background-radius: 12;" +
+                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
+        );
+
+        fileCard.getChildren().addAll(iconLabel, nameLabel);
+        return fileCard;
+    }
+    
+    private VBox createFileCard(String fileName) {
+        Label iconLabel = new Label("📄");
+        iconLabel.setStyle("-fx-font-size: 42px;");
+
+        Label nameLabel = new Label(fileName);
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(130);
         nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
@@ -486,6 +517,15 @@ public class DashboardController {
 
         public static ChatMessage server(String text) {
             return new ChatMessage("SERVER", text, true);
+        }
+    }
+    
+    
+    private void refreshFilesView(List<String> files) {
+        filesFlowPane.getChildren().clear();
+
+        for (String file : files) {
+            filesFlowPane.getChildren().add(createFileCard(file));
         }
     }
 }
