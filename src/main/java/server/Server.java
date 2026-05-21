@@ -12,15 +12,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 public class Server {
 
     private final int port;
-
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
-
     private final Path serverFilesDirectory = Paths.get("server_files");
 
     Server(int port) {
@@ -28,6 +27,8 @@ public class Server {
     }
 
     void start() {
+        MessageDatabase.initDatabase();
+
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             Files.createDirectories(serverFilesDirectory);
 
@@ -36,12 +37,8 @@ public class Server {
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-
-                new Thread(() -> {
-                    handleClient(clientSocket);
-                }).start();
+                new Thread(() -> handleClient(clientSocket)).start();
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -61,17 +58,27 @@ public class Server {
                 return client;
             }
         }
-
         return null;
     }
 
     private void broadcastMessage(String senderUsername, String message) {
-        String fullMessage = senderUsername + ": " + message;
-
+        String fullMessage = "__MSG__|" + escape(senderUsername) + "|" + escape(message);
         for (ClientHandler client : clients) {
-            if (!client.getUsername().equals(senderUsername)) {
-                client.sendMessage(fullMessage);
-            }
+            client.sendMessage(fullMessage);
+        }
+    }
+
+    private void broadcastServerMessage(String message) {
+        String fullMessage = "__SERVER__|" + escape(message);
+        for (ClientHandler client : clients) {
+            client.sendMessage(fullMessage);
+        }
+    }
+
+    private void broadcastProfile(String username, String imageBase64) {
+        String profileMessage = "__PROFILE__|" + escape(username) + "|" + imageBase64;
+        for (ClientHandler client : clients) {
+            client.sendMessage(profileMessage);
         }
     }
 
@@ -93,9 +100,8 @@ public class Server {
 
             if (findClient(username) != null) {
                 out.writeUTF("MESSAGE");
-                out.writeUTF("Username already used.");
+                out.writeUTF("__SERVER__|Username already used.");
                 out.flush();
-
                 clientSocket.close();
                 return;
             }
@@ -104,7 +110,16 @@ public class Server {
             addClient(client);
 
             System.out.println(username + " connected");
-            broadcastMessage("SERVER", username + " connected");
+
+            for (Map.Entry<String, String> profile : MessageDatabase.getAllProfileImages().entrySet()) {
+                client.sendMessage("__PROFILE__|" + escape(profile.getKey()) + "|" + profile.getValue());
+            }
+
+            for (String oldMessage : MessageDatabase.getAllMessages()) {
+                client.sendMessage(oldMessage);
+            }
+
+            broadcastServerMessage(username + " connected");
 
             while (true) {
                 String type = in.readUTF();
@@ -113,50 +128,39 @@ public class Server {
                     String message = in.readUTF();
 
                     System.out.println(username + ": " + message);
+                    MessageDatabase.saveMessage(username, message);
                     broadcastMessage(username, message);
-                }
-
-                else if (type.equals("FILE")) {
+                } else if (type.equals("SET_PROFILE")) {
+                    String imageBase64 = in.readUTF();
+                    MessageDatabase.saveProfileImage(username, imageBase64);
+                    broadcastProfile(username, imageBase64);
+                } else if (type.equals("FILE")) {
                     String fileName = in.readUTF();
                     long fileSize = in.readLong();
 
                     Path savedFile = saveFileOnServer(in, username, fileName, fileSize);
 
                     System.out.println(username + " uploaded file: " + savedFile.toAbsolutePath());
-
-                    client.sendMessage("SERVER: File uploaded successfully: " + savedFile.getFileName());
-
-                    broadcastMessage(
-                            "SERVER",
-                            username + " uploaded a file on the server: " + savedFile.getFileName()
-                    );
-                }
-
-                else if (type.equals("LIST_FILES")) {
+                    client.sendMessage("__SERVER__|File uploaded successfully: " + savedFile.getFileName());
+                    broadcastServerMessage(username + " uploaded a file on the server: " + savedFile.getFileName());
+                } else if (type.equals("LIST_FILES")) {
                     List<String> files = getServerFilesList();
 
                     System.out.println(username + " requested file list");
-
                     client.sendFileList(files);
-                }
-
-                else {
+                } else {
                     System.out.println("Unknown packet type from " + username + ": " + type);
                 }
             }
-
         } catch (EOFException e) {
             System.out.println("Client disconnected.");
-
         } catch (IOException e) {
             e.printStackTrace();
-
         } finally {
             if (client != null) {
                 removeClient(client);
-
                 System.out.println(client.getUsername() + " disconnected");
-                broadcastMessage("SERVER", client.getUsername() + " disconnected");
+                broadcastServerMessage(client.getUsername() + " disconnected");
             }
 
             try {
@@ -173,12 +177,10 @@ public class Server {
             String fileName,
             long fileSize
     ) throws IOException {
-
         Path userDirectory = serverFilesDirectory.resolve(username);
         Files.createDirectories(userDirectory);
 
         String safeFileName = Paths.get(fileName).getFileName().toString();
-
         Path outputPath = getUniquePath(userDirectory.resolve(safeFileName));
 
         try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
@@ -209,16 +211,10 @@ public class Server {
         }
 
         try (Stream<Path> paths = Files.walk(serverFilesDirectory)) {
-            paths
-                    .filter(Files::isRegularFile)
-                    .forEach(path -> {
-                        String relativePath = serverFilesDirectory
-                                .relativize(path)
-                                .toString()
-                                .replace("\\", "/");
-
-                        fileNames.add(relativePath);
-                    });
+            paths.filter(Files::isRegularFile).forEach(path -> {
+                String relativePath = serverFilesDirectory.relativize(path).toString().replace("\\", "/");
+                fileNames.add(relativePath);
+            });
         }
 
         return fileNames;
@@ -230,7 +226,6 @@ public class Server {
         }
 
         String fileName = originalPath.getFileName().toString();
-
         String name;
         String extension;
 
@@ -256,6 +251,13 @@ public class Server {
 
             counter++;
         }
+    }
+
+    private static String escape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\").replace("|", "\\p").replace("\n", "\\n").replace("\r", "");
     }
 
     private static class ClientHandler {
@@ -298,7 +300,6 @@ public class Server {
                 }
 
                 out.flush();
-
             } catch (IOException e) {
                 e.printStackTrace();
             }

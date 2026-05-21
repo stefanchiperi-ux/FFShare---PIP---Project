@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.Image?>
@@ -12,9 +13,10 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Circle?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane prefHeight="750.0" prefWidth="1250.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="interfata_drive.DashboardController">
+<BorderPane prefHeight="750.0" prefWidth="1250.0" style="-fx-background-color: #F8F9FA;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="interfata_drive.DashboardController">
 
    <top>
       <HBox alignment="CENTER_LEFT" prefHeight="75.0" style="-fx-border-color: #ECEFF1; -fx-border-width: 0 0 1 0; -fx-background-color: white;">
@@ -26,7 +28,7 @@
                <children>
                   <ImageView fitHeight="38.0" fitWidth="38.0" preserveRatio="true">
                      <image>
-                        <Image url="file:/D:/JAVA/workspace/interfata_drive/src/main/resources/interfata_drive/logo.png" />
+                        <Image url="@logo.png" />
                      </image>
                   </ImageView>
                   <Label text="FFShare" textFill="#2962FF">
@@ -37,7 +39,7 @@
                </children>
             </HBox>
             <Region HBox.hgrow="ALWAYS" />
-            <TextField prefHeight="40.0" prefWidth="480.0" promptText="caută documente..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 15;" />
+            <TextField prefHeight="40.0" prefWidth="480.0" promptText="cauta documente..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 15;" />
             <Region HBox.hgrow="ALWAYS" />
             <Label fx:id="userNameLabel" prefHeight="22.0" prefWidth="201.0" text="Nume Prenume" textFill="#37474F">
                <font>
@@ -54,16 +56,13 @@
             <Insets bottom="30.0" left="15.0" top="20.0" />
          </padding>
          <children>
-            <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 8;" text="Fișierele mele" />
+            <Button fx:id="filesBtn" prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 8;" text="Fisierele mele" />
             <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Partajate cu mine" />
             <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Recente" />
             <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Favorite" />
+            <Button fx:id="profileBtn" prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Profil" />
             <Region VBox.vgrow="ALWAYS" />
-            <Button fx:id="addFileBtn"
-        prefHeight="50.0"
-        prefWidth="220.0"
-        style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 25; -fx-background-radius: 25; -fx-text-fill: #2962FF;"
-        text="+ Încarcă fișier" />
+            <Button fx:id="addFileBtn" prefHeight="50.0" prefWidth="220.0" style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 25; -fx-background-radius: 25; -fx-text-fill: #2962FF;" text="+ Incarca fisier" />
          </children>
       </VBox>
    </left>
@@ -76,13 +75,42 @@
                   <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
                </padding>
                <children>
-                  <Label text="Fișierele mele!" textFill="#263238">
-                     <font>
-                        <Font name="System Bold" size="20.0" />
-                     </font>
-                  </Label>
+                  <VBox fx:id="filesPage" spacing="30.0">
+                     <children>
+                        <Label text="Fisierele mele" textFill="#263238">
+                           <font>
+                              <Font name="System Bold" size="20.0" />
+                           </font>
+                        </Label>
+                        <FlowPane fx:id="filesFlowPane" hgap="25.0" vgap="25.0" />
+                     </children>
+                  </VBox>
 
-                  <FlowPane fx:id="filesFlowPane" hgap="25.0" vgap="25.0" />
+                  <VBox fx:id="profilePage" alignment="TOP_CENTER" managed="false" spacing="20.0" visible="false">
+                     <children>
+                        <Label text="Profil" textFill="#263238">
+                           <font>
+                              <Font name="System Bold" size="24.0" />
+                           </font>
+                        </Label>
+                        <VBox alignment="CENTER" maxWidth="360.0" prefWidth="360.0" spacing="18.0" style="-fx-background-color: white; -fx-background-radius: 16; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 12, 0, 0, 4);">
+                           <children>
+                              <ImageView fx:id="profileImageView" fitHeight="130.0" fitWidth="130.0" preserveRatio="false" style="-fx-background-color: #ECEFF1;">
+                                 <clip>
+                                    <Circle centerX="65.0" centerY="65.0" radius="65.0" />
+                                 </clip>
+                              </ImageView>
+                              <Label fx:id="profileNameLabel" text="Nume utilizator" textFill="#263238">
+                                 <font>
+                                    <Font name="System Bold" size="18.0" />
+                                 </font>
+                              </Label>
+                              <Label text="Alege o poza PNG sau JPG. Poza va fi salvata pe server si va aparea langa mesajele tale in Friend Chat." textAlignment="CENTER" textFill="#607D8B" wrapText="true" />
+                              <Button fx:id="chooseProfileImageBtn" prefHeight="42.0" prefWidth="220.0" style="-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 20;" text="Alege poza de profil" />
+                           </children>
+                        </VBox>
+                     </children>
+                  </VBox>
                </children>
             </VBox>
          </content>
@@ -90,48 +118,30 @@
    </center>
 
    <right>
-      <VBox prefWidth="360.0" style="-fx-background-color: white; -fx-border-color: #ECEFF1; -fx-border-width: 0 0 0 1;">
+      <VBox prefWidth="320.0" style="-fx-background-color: white; -fx-border-color: #ECEFF1; -fx-border-width: 0 0 0 1;">
          <children>
-            <HBox alignment="CENTER_LEFT" prefHeight="72.0" style="-fx-border-color: #ECEFF1; -fx-border-width: 0 0 1 0; -fx-background-color: white;">
+            <HBox alignment="CENTER_LEFT" prefHeight="65.0" style="-fx-border-color: #ECEFF1; -fx-border-width: 0 0 1 0;">
                <padding>
-                  <Insets left="20.0" right="20.0" />
+                  <Insets left="20.0" />
                </padding>
                <children>
-                  <VBox spacing="2.0">
-                     <children>
-                        <Label text="Friend Chat " textFill="#0D47A1">
-                           <font>
-                              <Font name="System Bold" size="16.0" />
-                           </font>
-                        </Label>
-                        <Label fx:id="chatStatusLabel" text="Offline ready" textFill="#607D8B">
-                           <font>
-                              <Font size="11.0" />
-                           </font>
-                        </Label>
-                     </children>
-                  </VBox>
+                  <Label text="Friend Chat" textFill="#1A237E">
+                     <font>
+                        <Font name="System Bold" size="16.0" />
+                     </font>
+                  </Label>
                </children>
             </HBox>
 
-            <ScrollPane fx:id="chatScrollPane" fitToWidth="true" hbarPolicy="NEVER" style="-fx-background: #F8FBFF; -fx-background-color: #F8FBFF;" VBox.vgrow="ALWAYS">
-               <content>
-                  <VBox fx:id="chatMessagesBox" fillWidth="true" spacing="10.0" style="-fx-background-color: #F8FBFF;">
-                     <padding>
-                        <Insets bottom="18.0" left="16.0" right="16.0" top="18.0" />
-                     </padding>
-                  </VBox>
-               </content>
-            </ScrollPane>
+            <ListView fx:id="messageList" style="-fx-background-color: #F8F9FA;" VBox.vgrow="ALWAYS" />
 
-            <HBox alignment="CENTER" fillHeight="false" maxHeight="82.0" minHeight="82.0" prefHeight="82.0" spacing="10.0" style="-fx-background-color: white; -fx-border-color: #ECEFF1; -fx-border-width: 1 0 0 0;" VBox.vgrow="NEVER">
+            <HBox alignment="CENTER" prefHeight="80.0" spacing="10.0" style="-fx-border-color: #ECEFF1; -fx-border-width: 1 0 0 0;">
                <padding>
                   <Insets left="15.0" right="15.0" />
                </padding>
                <children>
-                  <TextField fx:id="writeMessageField" maxHeight="45.0" minHeight="45.0" minWidth="235.0" prefHeight="45.0" promptText="Scrie mesaj..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 22; -fx-border-color: #D7E3F8; -fx-border-radius: 22; -fx-padding: 0 14;" HBox.hgrow="ALWAYS" />
-
-                  <Button fx:id="sendBtn" maxHeight="45.0" maxWidth="52.0" minHeight="45.0" minWidth="52.0" prefHeight="45.0" prefWidth="52.0" style="-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 24; -fx-font-weight: bold;" text="&gt;" />
+                  <TextField fx:id="writeMessageField" prefHeight="45.0" promptText="Scrie un mesaj..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 10;" HBox.hgrow="ALWAYS" />
+                  <Button fx:id="sendBtn" prefHeight="45.0" prefWidth="50.0" style="-fx-background-color: linear-gradient(to right, #2962FF, #448AFF); -fx-text-fill: white; -fx-background-radius: 20; -fx-font-weight: bold;" text="&gt;" />
                </children>
             </HBox>
          </children>

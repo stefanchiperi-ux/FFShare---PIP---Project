@@ -23,7 +23,6 @@ public class Client {
     private String username;
 
     private Socket socket;
-
     private DataOutputStream out;
     private DataInputStream in;
 
@@ -32,8 +31,9 @@ public class Client {
     private Consumer<String> onMessageReceived;
     private Consumer<File> onFileReceived;
     private Consumer<List<String>> onFileListReceived;
+    private final List<String> pendingMessages = new ArrayList<>();
 
-    private Path downloadDirectory = Paths.get("received_files");
+    private final Path downloadDirectory = Paths.get("received_files");
 
     public Client(String host, int port, String username) {
         this.host = host;
@@ -45,8 +45,15 @@ public class Client {
         this.username = username;
     }
 
-    public void setOnMessageReceived(Consumer<String> onMessageReceived) {
+    public synchronized void setOnMessageReceived(Consumer<String> onMessageReceived) {
         this.onMessageReceived = onMessageReceived;
+
+        if (this.onMessageReceived != null && !pendingMessages.isEmpty()) {
+            for (String message : pendingMessages) {
+                this.onMessageReceived.accept(message);
+            }
+            pendingMessages.clear();
+        }
     }
 
     public void setOnFileReceived(Consumer<File> onFileReceived) {
@@ -82,39 +89,26 @@ public class Client {
 
                     if (type.equals("MESSAGE")) {
                         String message = in.readUTF();
-
                         System.out.println("Message received: " + message);
-
-                        if (onMessageReceived != null) {
-                            onMessageReceived.accept(message);
-                        }
-                    }
-
-                    else if (type.equals("FILE")) {
+                        handleReceivedMessage(message);
+                    } else if (type.equals("FILE")) {
                         String fileName = in.readUTF();
                         long fileSize = in.readLong();
 
                         File receivedFile = receiveFile(fileName, fileSize);
-
                         System.out.println("File received: " + receivedFile.getAbsolutePath());
 
                         if (onFileReceived != null) {
                             onFileReceived.accept(receivedFile);
                         }
 
-                        if (onMessageReceived != null) {
-                            onMessageReceived.accept("File received: " + receivedFile.getName());
-                        }
-                    }
-
-                    else if (type.equals("FILES_LIST")) {
+                        handleReceivedMessage("__SERVER__|File received: " + receivedFile.getName());
+                    } else if (type.equals("FILES_LIST")) {
                         int count = in.readInt();
-
                         List<String> files = new ArrayList<>();
 
                         for (int i = 0; i < count; i++) {
-                            String fileName = in.readUTF();
-                            files.add(fileName);
+                            files.add(in.readUTF());
                         }
 
                         System.out.println("File list received from server.");
@@ -122,13 +116,10 @@ public class Client {
                         if (onFileListReceived != null) {
                             onFileListReceived.accept(files);
                         }
-                    }
-
-                    else {
+                    } else {
                         System.out.println("Unknown response from server: " + type);
                     }
                 }
-
             } catch (EOFException e) {
                 if (running) {
                     System.out.println("Server closed the connection.");
@@ -145,6 +136,14 @@ public class Client {
         listenerThread.start();
     }
 
+    private synchronized void handleReceivedMessage(String message) {
+        if (onMessageReceived != null) {
+            onMessageReceived.accept(message);
+        } else {
+            pendingMessages.add(message);
+        }
+    }
+
     public synchronized void sendMessage(String text) {
         if (out == null) {
             return;
@@ -153,6 +152,20 @@ public class Client {
         try {
             out.writeUTF("MESSAGE");
             out.writeUTF(text);
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public synchronized void sendProfileImage(String imageBase64) {
+        if (out == null) {
+            return;
+        }
+
+        try {
+            out.writeUTF("SET_PROFILE");
+            out.writeUTF(imageBase64);
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -179,7 +192,6 @@ public class Client {
             out.flush();
 
             System.out.println("File sent: " + file.getName());
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -193,9 +205,7 @@ public class Client {
         try {
             out.writeUTF("LIST_FILES");
             out.flush();
-
             System.out.println("File list request sent to server.");
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -233,7 +243,6 @@ public class Client {
         }
 
         String fileName = originalPath.getFileName().toString();
-
         String name;
         String extension;
 

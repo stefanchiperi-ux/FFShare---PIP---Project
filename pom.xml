@@ -10,7 +10,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>23</maven.compiler.release>
+    <maven.compiler.release>21</maven.compiler.release>
     <javafx.version>21.0.1</javafx.version>
   </properties>
 
@@ -52,7 +52,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.11.0</version>
         <configuration>
-          <release>23</release>
+          <release>21</release>
         </configuration>
       </plugin>
 
