@@ -12,8 +12,6 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Consumer;
 
 public class Client {
@@ -31,7 +29,6 @@ public class Client {
 
     private Consumer<String> onMessageReceived;
     private Consumer<File> onFileReceived;
-    private Consumer<List<String>> onFileListReceived;
 
     private Path downloadDirectory = Paths.get("received_files");
 
@@ -53,10 +50,6 @@ public class Client {
         this.onFileReceived = onFileReceived;
     }
 
-    public void setOnFileListReceived(Consumer<List<String>> onFileListReceived) {
-        this.onFileListReceived = onFileListReceived;
-    }
-
     public void connect() throws IOException {
         this.socket = new Socket();
         this.socket.connect(new InetSocketAddress(host, port), 1500);
@@ -68,6 +61,8 @@ public class Client {
 
         System.out.println("Connected to server");
 
+        // Trimitem username-ul la început, ca înainte,
+        // doar că acum folosim writeUTF în loc de println.
         out.writeUTF(username);
         out.flush();
 
@@ -105,27 +100,6 @@ public class Client {
                         if (onMessageReceived != null) {
                             onMessageReceived.accept("File received: " + receivedFile.getName());
                         }
-                    }
-
-                    else if (type.equals("FILES_LIST")) {
-                        int count = in.readInt();
-
-                        List<String> files = new ArrayList<>();
-
-                        for (int i = 0; i < count; i++) {
-                            String fileName = in.readUTF();
-                            files.add(fileName);
-                        }
-
-                        System.out.println("File list received from server.");
-
-                        if (onFileListReceived != null) {
-                            onFileListReceived.accept(files);
-                        }
-                    }
-
-                    else {
-                        System.out.println("Unknown response from server: " + type);
                     }
                 }
 
@@ -185,22 +159,6 @@ public class Client {
         }
     }
 
-    public synchronized void requestFileList() {
-        if (out == null) {
-            return;
-        }
-
-        try {
-            out.writeUTF("LIST_FILES");
-            out.flush();
-
-            System.out.println("File list request sent to server.");
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     private File receiveFile(String fileName, long fileSize) throws IOException {
         Files.createDirectories(downloadDirectory);
 
@@ -233,7 +191,6 @@ public class Client {
         }
 
         String fileName = originalPath.getFileName().toString();
-
         String name;
         String extension;
 

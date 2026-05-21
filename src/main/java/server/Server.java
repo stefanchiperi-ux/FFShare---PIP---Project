@@ -1,61 +1,38 @@
 package server;
 
-import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Stream;
 
-/**
- * Represents a simple multi-client chat server.
- * <p>
- * The server listens for incoming client connections on a specified port.
- * Each connected client is handled on a separate thread, allowing multiple
- * clients to communicate with the server at the same time.
- * </p>
- * <p>
- * Messages received from one client are broadcast to all other connected
- * clients.
- * </p>
- */
 public class Server {
 
-    /**
-     * The port on which the server listens for incoming client connections.
-     */
     private final int port;
 
-    /**
-     * Thread-safe list containing all currently connected clients.
-     * <p>
-     * A {@link CopyOnWriteArrayList} is used because clients may be added or
-     * removed while the server is broadcasting messages.
-     * </p>
-     */
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
 
-    /**
-     * Creates a new server that listens on the specified port.
-     *
-     * @param port the port number used by the server
-     */
+    private final Path serverFilesDirectory = Paths.get("server_files");
+
     Server(int port) {
         this.port = port;
     }
 
-    /**
-     * Starts the server and waits for incoming client connections.
-     * <p>
-     * For each accepted client connection, a new thread is created in order to
-     * handle that client independently.
-     * </p>
-     */
     void start() {
         try (ServerSocket serverSocket = new ServerSocket(port)) {
+            Files.createDirectories(serverFilesDirectory);
+
             System.out.println("Server started at port " + port);
+            System.out.println("Files will be saved in: " + serverFilesDirectory.toAbsolutePath());
 
             while (true) {
                 Socket clientSocket = serverSocket.accept();
@@ -70,31 +47,14 @@ public class Server {
         }
     }
 
-    /**
-     * Adds a client to the list of connected clients.
-     *
-     * @param client the client handler to be added
-     */
     private void addClient(ClientHandler client) {
         clients.add(client);
     }
 
-    /**
-     * Removes a client from the list of connected clients.
-     *
-     * @param client the client handler to be removed
-     */
     private void removeClient(ClientHandler client) {
         clients.remove(client);
     }
 
-    /**
-     * Searches for a connected client by username.
-     *
-     * @param username the username of the client to search for
-     * @return the matching {@link ClientHandler}, or {@code null} if no client
-     *         with the given username is connected
-     */
     private ClientHandler findClient(String username) {
         for (ClientHandler client : clients) {
             if (client.getUsername().equals(username)) {
@@ -105,50 +65,24 @@ public class Server {
         return null;
     }
 
-    /**
-     * Sends a message from one client to all other connected clients.
-     * <p>
-     * The sender does not receive their own message back from the server.
-     * </p>
-     *
-     * @param senderUsername the username of the client who sent the message
-     * @param message the message to be broadcast
-     */
-    private void broadcast(String senderUsername, String message) {
+    private void broadcastMessage(String senderUsername, String message) {
         String fullMessage = senderUsername + ": " + message;
 
         for (ClientHandler client : clients) {
             if (!client.getUsername().equals(senderUsername)) {
-                client.send(fullMessage);
+                client.sendMessage(fullMessage);
             }
         }
     }
 
-    /**
-     * Handles communication with a connected client.
-     * <p>
-     * This method reads the username sent by the client, checks whether the
-     * username is valid and unique, then continuously reads messages from the
-     * client and broadcasts them to the other connected clients.
-     * </p>
-     * <p>
-     * When the client disconnects or an error occurs, the client is removed from
-     * the list of connected clients and the socket is closed.
-     * </p>
-     *
-     * @param clientSocket the socket associated with the connected client
-     */
     private void handleClient(Socket clientSocket) {
         ClientHandler client = null;
 
         try {
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(clientSocket.getInputStream())
-            );
+            DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+            DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-            String username = in.readLine();
+            String username = in.readUTF();
 
             if (username == null || username.isBlank()) {
                 clientSocket.close();
@@ -158,7 +92,10 @@ public class Server {
             username = username.trim();
 
             if (findClient(username) != null) {
-                out.println("Username already used.");
+                out.writeUTF("MESSAGE");
+                out.writeUTF("Username already used.");
+                out.flush();
+
                 clientSocket.close();
                 return;
             }
@@ -167,14 +104,49 @@ public class Server {
             addClient(client);
 
             System.out.println(username + " connected");
-            broadcast("SERVER", username + " connected");
+            broadcastMessage("SERVER", username + " connected");
 
-            String message;
+            while (true) {
+                String type = in.readUTF();
 
-            while ((message = in.readLine()) != null) {
-                System.out.println(username + ": " + message);
-                broadcast(username, message);
+                if (type.equals("MESSAGE")) {
+                    String message = in.readUTF();
+
+                    System.out.println(username + ": " + message);
+                    broadcastMessage(username, message);
+                }
+
+                else if (type.equals("FILE")) {
+                    String fileName = in.readUTF();
+                    long fileSize = in.readLong();
+
+                    Path savedFile = saveFileOnServer(in, username, fileName, fileSize);
+
+                    System.out.println(username + " uploaded file: " + savedFile.toAbsolutePath());
+
+                    client.sendMessage("SERVER: File uploaded successfully: " + savedFile.getFileName());
+
+                    broadcastMessage(
+                            "SERVER",
+                            username + " uploaded a file on the server: " + savedFile.getFileName()
+                    );
+                }
+
+                else if (type.equals("LIST_FILES")) {
+                    List<String> files = getServerFilesList();
+
+                    System.out.println(username + " requested file list");
+
+                    client.sendFileList(files);
+                }
+
+                else {
+                    System.out.println("Unknown packet type from " + username + ": " + type);
+                }
             }
+
+        } catch (EOFException e) {
+            System.out.println("Client disconnected.");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -184,7 +156,7 @@ public class Server {
                 removeClient(client);
 
                 System.out.println(client.getUsername() + " disconnected");
-                broadcast("SERVER", client.getUsername() + " disconnected");
+                broadcastMessage("SERVER", client.getUsername() + " disconnected");
             }
 
             try {
@@ -195,68 +167,141 @@ public class Server {
         }
     }
 
-    /**
-     * Represents a connected client.
-     * <p>
-     * This class stores the client's username, socket, and output stream.
-     * It is used by the server to send messages to a specific client.
-     * </p>
-     */
+    private Path saveFileOnServer(
+            DataInputStream in,
+            String username,
+            String fileName,
+            long fileSize
+    ) throws IOException {
+
+        Path userDirectory = serverFilesDirectory.resolve(username);
+        Files.createDirectories(userDirectory);
+
+        String safeFileName = Paths.get(fileName).getFileName().toString();
+
+        Path outputPath = getUniquePath(userDirectory.resolve(safeFileName));
+
+        try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
+            byte[] buffer = new byte[4096];
+            long remainingBytes = fileSize;
+
+            while (remainingBytes > 0) {
+                int bytesToRead = (int) Math.min(buffer.length, remainingBytes);
+                int bytesRead = in.read(buffer, 0, bytesToRead);
+
+                if (bytesRead == -1) {
+                    throw new EOFException("Connection closed before file was fully received.");
+                }
+
+                fos.write(buffer, 0, bytesRead);
+                remainingBytes -= bytesRead;
+            }
+        }
+
+        return outputPath;
+    }
+
+    private List<String> getServerFilesList() throws IOException {
+        List<String> fileNames = new ArrayList<>();
+
+        if (!Files.exists(serverFilesDirectory)) {
+            return fileNames;
+        }
+
+        try (Stream<Path> paths = Files.walk(serverFilesDirectory)) {
+            paths
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> {
+                        String relativePath = serverFilesDirectory
+                                .relativize(path)
+                                .toString()
+                                .replace("\\", "/");
+
+                        fileNames.add(relativePath);
+                    });
+        }
+
+        return fileNames;
+    }
+
+    private Path getUniquePath(Path originalPath) {
+        if (!Files.exists(originalPath)) {
+            return originalPath;
+        }
+
+        String fileName = originalPath.getFileName().toString();
+
+        String name;
+        String extension;
+
+        int dotIndex = fileName.lastIndexOf('.');
+
+        if (dotIndex > 0) {
+            name = fileName.substring(0, dotIndex);
+            extension = fileName.substring(dotIndex);
+        } else {
+            name = fileName;
+            extension = "";
+        }
+
+        Path parent = originalPath.getParent();
+        int counter = 1;
+
+        while (true) {
+            Path newPath = parent.resolve(name + "_" + counter + extension);
+
+            if (!Files.exists(newPath)) {
+                return newPath;
+            }
+
+            counter++;
+        }
+    }
+
     private static class ClientHandler {
 
-        /**
-         * The username of the connected client.
-         */
         private final String username;
-
-        /**
-         * The socket associated with the client connection.
-         */
         private final Socket socket;
+        private final DataOutputStream out;
 
-        /**
-         * Output stream used to send messages to the client.
-         */
-        private final PrintWriter out;
-
-        /**
-         * Creates a new client handler for a connected client.
-         *
-         * @param username the username of the client
-         * @param socket the socket associated with the client
-         * @param out the output stream used to send messages to the client
-         */
-        public ClientHandler(String username, Socket socket, PrintWriter out) {
+        public ClientHandler(String username, Socket socket, DataOutputStream out) {
             this.username = username;
             this.socket = socket;
             this.out = out;
         }
 
-        /**
-         * Returns the username of the client.
-         *
-         * @return the client's username
-         */
         public String getUsername() {
             return username;
         }
 
-        /**
-         * Returns the socket associated with the client.
-         *
-         * @return the client's socket
-         */
         public Socket getSocket() {
             return socket;
         }
 
-        /**
-         * Sends a message to the client.
-         *
-         * @param message the message to be sent
-         */
-        public void send(String message) {
-            out.println(message);
+        public synchronized void sendMessage(String message) {
+            try {
+                out.writeUTF("MESSAGE");
+                out.writeUTF(message);
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public synchronized void sendFileList(List<String> files) {
+            try {
+                out.writeUTF("FILES_LIST");
+                out.writeInt(files.size());
+
+                for (String file : files) {
+                    out.writeUTF(file);
+                }
+
+                out.flush();
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
