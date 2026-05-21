@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,6 +13,14 @@ import java.util.Map;
 
 public class MessageDatabase {
     private static final String DB_URL = "jdbc:sqlite:mesaje.db";
+
+    static {
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException e) {
+            throw new ExceptionInInitializerError("SQLite JDBC driver is missing from the runtime classpath. Run with Maven or add sqlite-jdbc to the run configuration.");
+        }
+    }
 
     public static void initDatabase() {
         String messagesSql = "CREATE TABLE IF NOT EXISTS messages (" +
@@ -31,8 +40,8 @@ public class MessageDatabase {
              Statement stmt = conn.createStatement()) {
             stmt.execute(messagesSql);
             stmt.execute(profilesSql);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not initialize message database", e);
         }
     }
 

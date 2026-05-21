@@ -2,3 +2,5 @@
 /target/
 /groq-api.properties
 /mesaje.db
+/out/
+/server_files/
