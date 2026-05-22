@@ -7,12 +7,14 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class MessageDatabase {
     private static final String DB_URL = "jdbc:sqlite:mesaje.db";
+    private static final int MAX_PROFILE_IMAGE_BASE64_LENGTH = 2_100_000;
 
     static {
         try {
@@ -76,7 +78,11 @@ public class MessageDatabase {
         return messages;
     }
 
-    public static void saveProfileImage(String username, String imageBase64) {
+    public static boolean saveProfileImage(String username, String imageBase64) {
+        if (!isValidImageBase64(imageBase64)) {
+            return false;
+        }
+
         String sql = "INSERT INTO profiles(username, image_base64, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP) " +
                 "ON CONFLICT(username) DO UPDATE SET image_base64 = excluded.image_base64, updated_at = CURRENT_TIMESTAMP";
 
@@ -85,8 +91,10 @@ public class MessageDatabase {
             pstmt.setString(1, username);
             pstmt.setString(2, imageBase64);
             pstmt.executeUpdate();
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
         }
     }
 
@@ -99,13 +107,53 @@ public class MessageDatabase {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                profiles.put(rs.getString("username"), rs.getString("image_base64"));
+                String imageBase64 = rs.getString("image_base64");
+
+                if (isValidImageBase64(imageBase64)) {
+                    profiles.put(rs.getString("username"), imageBase64);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         return profiles;
+    }
+
+    private static boolean isValidImageBase64(String imageBase64) {
+        if (imageBase64 == null || imageBase64.isBlank() || imageBase64.length() > MAX_PROFILE_IMAGE_BASE64_LENGTH) {
+            return false;
+        }
+
+        try {
+            byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
+            return isPng(imageBytes) || isJpeg(imageBytes);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static boolean isPng(byte[] imageBytes) {
+        byte[] signature = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+
+        if (imageBytes.length < signature.length) {
+            return false;
+        }
+
+        for (int i = 0; i < signature.length; i++) {
+            if (imageBytes[i] != signature[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean isJpeg(byte[] imageBytes) {
+        return imageBytes.length >= 3
+                && (imageBytes[0] & 0xFF) == 0xFF
+                && (imageBytes[1] & 0xFF) == 0xD8
+                && (imageBytes[2] & 0xFF) == 0xFF;
     }
 
     private static String escape(String value) {

@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,7 +19,9 @@ import java.util.function.Consumer;
 
 public class Client {
 
-    private String host = "172.20.10.11";
+    private static final int MAX_PROFILE_IMAGE_PAYLOAD_BYTES = 2_100_000;
+
+    private String host = "172.20.10.9";
     private int port = 5000;
     private String username;
 
@@ -91,6 +94,12 @@ public class Client {
                         String message = in.readUTF();
                         System.out.println("Message received: " + message);
                         handleReceivedMessage(message);
+                    } else if (type.equals("PROFILE")) {
+                        String profileUsername = in.readUTF();
+                        byte[] profilePayload = readPayload(MAX_PROFILE_IMAGE_PAYLOAD_BYTES);
+                        String imageBase64 = new String(profilePayload, StandardCharsets.UTF_8);
+
+                        handleReceivedMessage("__PROFILE__|" + escape(profileUsername) + "|" + imageBase64);
                     } else if (type.equals("FILE")) {
                         String fileName = in.readUTF();
                         long fileSize = in.readLong();
@@ -163,9 +172,17 @@ public class Client {
             return;
         }
 
+        byte[] profilePayload = imageBase64.getBytes(StandardCharsets.UTF_8);
+
+        if (profilePayload.length <= 0 || profilePayload.length > MAX_PROFILE_IMAGE_PAYLOAD_BYTES) {
+            System.out.println("Profile image is too large to send.");
+            return;
+        }
+
         try {
             out.writeUTF("SET_PROFILE");
-            out.writeUTF(imageBase64);
+            out.writeInt(profilePayload.length);
+            out.write(profilePayload);
             out.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -237,6 +254,18 @@ public class Client {
         return outputPath.toFile();
     }
 
+    private byte[] readPayload(int maxSize) throws IOException {
+        int payloadSize = in.readInt();
+
+        if (payloadSize <= 0 || payloadSize > maxSize) {
+            throw new IOException("Invalid payload size: " + payloadSize);
+        }
+
+        byte[] payload = new byte[payloadSize];
+        in.readFully(payload);
+        return payload;
+    }
+
     private Path getUniquePath(Path originalPath) {
         if (!Files.exists(originalPath)) {
             return originalPath;
@@ -280,5 +309,13 @@ public class Client {
         if (socket != null) {
             socket.close();
         }
+    }
+
+    private static String escape(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value.replace("\\", "\\\\").replace("|", "\\p").replace("\n", "\\n").replace("\r", "");
     }
 }

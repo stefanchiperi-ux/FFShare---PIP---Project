@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +18,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 public class Server {
+
+    private static final int MAX_PROFILE_IMAGE_PAYLOAD_BYTES = 2_100_000;
 
     private final int port;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
@@ -76,9 +79,8 @@ public class Server {
     }
 
     private void broadcastProfile(String username, String imageBase64) {
-        String profileMessage = "__PROFILE__|" + escape(username) + "|" + imageBase64;
         for (ClientHandler client : clients) {
-            client.sendMessage(profileMessage);
+            client.sendProfile(username, imageBase64);
         }
     }
 
@@ -112,7 +114,7 @@ public class Server {
             System.out.println(username + " connected");
 
             for (Map.Entry<String, String> profile : MessageDatabase.getAllProfileImages().entrySet()) {
-                client.sendMessage("__PROFILE__|" + escape(profile.getKey()) + "|" + profile.getValue());
+                client.sendProfile(profile.getKey(), profile.getValue());
             }
 
             for (String oldMessage : MessageDatabase.getAllMessages()) {
@@ -131,9 +133,13 @@ public class Server {
                     MessageDatabase.saveMessage(username, message);
                     broadcastMessage(username, message);
                 } else if (type.equals("SET_PROFILE")) {
-                    String imageBase64 = in.readUTF();
-                    MessageDatabase.saveProfileImage(username, imageBase64);
-                    broadcastProfile(username, imageBase64);
+                    String imageBase64 = readProfilePayload(in);
+
+                    if (MessageDatabase.saveProfileImage(username, imageBase64)) {
+                        broadcastProfile(username, imageBase64);
+                    } else {
+                        client.sendMessage("__SERVER__|Poza de profil nu este valida.");
+                    }
                 } else if (type.equals("FILE")) {
                     String fileName = in.readUTF();
                     long fileSize = in.readLong();
@@ -170,6 +176,18 @@ public class Server {
                 e.printStackTrace();
             }
         }
+    }
+
+    private String readProfilePayload(DataInputStream in) throws IOException {
+        int payloadSize = in.readInt();
+
+        if (payloadSize <= 0 || payloadSize > MAX_PROFILE_IMAGE_PAYLOAD_BYTES) {
+            throw new IOException("Invalid profile image size: " + payloadSize);
+        }
+
+        byte[] payload = new byte[payloadSize];
+        in.readFully(payload);
+        return new String(payload, StandardCharsets.UTF_8);
     }
 
     private Path saveFileOnServer(
@@ -285,6 +303,24 @@ public class Server {
             try {
                 out.writeUTF("MESSAGE");
                 out.writeUTF(message);
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public synchronized void sendProfile(String username, String imageBase64) {
+            byte[] profilePayload = imageBase64.getBytes(StandardCharsets.UTF_8);
+
+            if (profilePayload.length <= 0 || profilePayload.length > MAX_PROFILE_IMAGE_PAYLOAD_BYTES) {
+                return;
+            }
+
+            try {
+                out.writeUTF("PROFILE");
+                out.writeUTF(username);
+                out.writeInt(profilePayload.length);
+                out.write(profilePayload);
                 out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
