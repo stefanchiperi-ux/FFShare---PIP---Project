@@ -349,7 +349,6 @@ public class DashboardController {
 
         if (Session.getCurrentUser() != null) {
             Session.getCurrentUser().addFile(filePath);
-            Session.getClient().sendFile(selectedFile);
             Session.getClient().requestFileList();
             refreshFilesView();
         }
