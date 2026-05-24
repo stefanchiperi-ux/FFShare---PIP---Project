@@ -375,6 +375,26 @@ public class DashboardController {
         uploadThread.start();
     }
 
+    private void handleDownloadFileAction(String filePath) {
+        if (Session.getClient() == null || !Session.getClient().isConnected()) {
+            showAlert("Eroare", "Nu exista conexiune la server pentru descarcarea fisierului.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salveaza fisierul");
+        fileChooser.setInitialFileName(getDisplayFileName(filePath));
+
+        File destination = fileChooser.showSaveDialog(filesFlowPane.getScene().getWindow());
+
+        if (destination == null) {
+            return;
+        }
+
+        Session.getClient().requestFileDownload(filePath, destination);
+        messageList.getItems().add(ChatMessage.server("Se descarca fisierul: " + getDisplayFileName(filePath)));
+    }
+
     private void refreshFilesView() {
         filesFlowPane.getChildren().clear();
 
@@ -418,6 +438,7 @@ public class DashboardController {
         return emptyLabel;
     }
 
+
     private VBox createFileCard(String filePath) {
         Label iconLabel = new Label("📄");
         iconLabel.setStyle("-fx-font-size: 42px;");
@@ -427,17 +448,28 @@ public class DashboardController {
         nameLabel.setMaxWidth(130);
         nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
 
+        Button downloadBtn = new Button("Descarca");
+        downloadBtn.setPrefWidth(110);
+        downloadBtn.setStyle(
+                "-fx-background-color: #2962FF;" +
+                "-fx-text-fill: white;" +
+                "-fx-background-radius: 14;" +
+                "-fx-font-size: 12px;" +
+                "-fx-cursor: hand;"
+        );
+        downloadBtn.setOnAction(event -> handleDownloadFileAction(filePath));
+
         VBox fileCard = new VBox(8);
         fileCard.setAlignment(Pos.CENTER);
         fileCard.setPrefWidth(150);
-        fileCard.setPrefHeight(130);
+        fileCard.setPrefHeight(165);
         fileCard.setStyle(
                 "-fx-background-color: white;" +
                 "-fx-background-radius: 12;" +
                 "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
         );
 
-        fileCard.getChildren().addAll(iconLabel, nameLabel);
+        fileCard.getChildren().addAll(iconLabel, nameLabel, downloadBtn);
         return fileCard;
     }
 

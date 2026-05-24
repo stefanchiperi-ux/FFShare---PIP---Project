@@ -5,12 +5,15 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class Client {
@@ -30,6 +33,7 @@ public class Client {
     private Consumer<String> onMessageReceived;
     private Consumer<List<String>> onFileListReceived;
     private final List<String> pendingMessages = new ArrayList<>();
+    private final Map<String, File> pendingDownloads = new ConcurrentHashMap<>();
 
     public Client(String host, int port, String username) {
         this.host = host;
@@ -102,6 +106,13 @@ public class Client {
                         if (onFileListReceived != null) {
                             onFileListReceived.accept(files);
                         }
+                    } else if (type.equals("FILE_DOWNLOAD")) {
+                        receiveFileDownload();
+                    } else if (type.equals("DOWNLOAD_ERROR")) {
+                        String filePath = in.readUTF();
+                        String errorMessage = in.readUTF();
+                        pendingDownloads.remove(filePath);
+                        handleReceivedMessage("__SERVER__|" + errorMessage);
                     } else {
                         System.out.println("Unknown response from server: " + type);
                     }
@@ -191,6 +202,24 @@ public class Client {
         }
     }
 
+    public synchronized void requestFileDownload(String filePath, File destination) {
+        if (out == null || filePath == null || filePath.isBlank() || destination == null) {
+            return;
+        }
+
+        pendingDownloads.put(filePath, destination);
+
+        try {
+            out.writeUTF("DOWNLOAD");
+            out.writeUTF(filePath);
+            out.flush();
+            System.out.println("File download request sent: " + filePath);
+        } catch (IOException e) {
+            pendingDownloads.remove(filePath);
+            handleReceivedMessage("__SERVER__|Nu am putut cere descarcarea fisierului: " + e.getMessage());
+        }
+    }
+
     public synchronized void requestFileList() {
         if (out == null) {
             return;
@@ -215,6 +244,97 @@ public class Client {
         byte[] payload = new byte[payloadSize];
         in.readFully(payload);
         return payload;
+    }
+
+    private void receiveFileDownload() throws IOException {
+        String filePath = in.readUTF();
+        String fileName = in.readUTF();
+        long fileSize = in.readLong();
+
+        if (fileSize < 0) {
+            throw new IOException("Invalid file download size: " + fileSize);
+        }
+
+        File destination = pendingDownloads.remove(filePath);
+
+        if (destination == null) {
+            discardBytes(fileSize);
+            handleReceivedMessage("__SERVER__|Nu am gasit destinatia pentru descarcare: " + fileName);
+            return;
+        }
+
+        File parent = destination.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            discardBytes(fileSize);
+            handleReceivedMessage("__SERVER__|Nu am putut crea folderul de descarcare.");
+            return;
+        }
+
+        IOException writeError = null;
+        FileOutputStream fos = null;
+
+        try {
+            try {
+                fos = new FileOutputStream(destination);
+            } catch (IOException e) {
+                writeError = e;
+            }
+
+            long remainingBytes = fileSize;
+            byte[] buffer = new byte[4096];
+
+            while (remainingBytes > 0) {
+                int bytesToRead = (int) Math.min(buffer.length, remainingBytes);
+                int bytesRead = in.read(buffer, 0, bytesToRead);
+
+                if (bytesRead == -1) {
+                    throw new EOFException("Connection closed before file was fully downloaded.");
+                }
+
+                if (fos != null && writeError == null) {
+                    try {
+                        fos.write(buffer, 0, bytesRead);
+                    } catch (IOException e) {
+                        writeError = e;
+                    }
+                }
+
+                remainingBytes -= bytesRead;
+            }
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    if (writeError == null) {
+                        writeError = e;
+                    }
+                }
+            }
+        }
+
+        if (writeError != null) {
+            handleReceivedMessage("__SERVER__|Nu am putut salva fisierul: " + writeError.getMessage());
+            return;
+        }
+
+        handleReceivedMessage("__SERVER__|Fisier descarcat: " + destination.getAbsolutePath());
+    }
+
+    private void discardBytes(long bytesToDiscard) throws IOException {
+        byte[] buffer = new byte[4096];
+        long remainingBytes = bytesToDiscard;
+
+        while (remainingBytes > 0) {
+            int bytesToRead = (int) Math.min(buffer.length, remainingBytes);
+            int bytesRead = in.read(buffer, 0, bytesToRead);
+
+            if (bytesRead == -1) {
+                throw new EOFException("Connection closed before payload was fully discarded.");
+            }
+
+            remainingBytes -= bytesRead;
+        }
     }
 
     public boolean isConnected() {

@@ -31,6 +31,7 @@ namespace interfata_drive {
         +setUserData(fullName) void
         -sendMessageAction() void
         -handleAddFileAction() void
+        -handleDownloadFileAction(filePath) void
         -chooseProfileImage() void
         -handleAiCommand(command) void
         -handleServerMessage(rawMessage) void
@@ -74,6 +75,7 @@ namespace client {
         +sendMessage(text) void
         +sendProfileImage(imageBase64) void
         +sendFile(file) void
+        +requestFileDownload(filePath, destination) void
         +requestFileList() void
         +isConnected() boolean
         +close() void
@@ -103,6 +105,8 @@ namespace server {
         +getUsername() String
         +sendMessage(message) void
         +sendProfile(username, imageBase64) void
+        +sendFileDownload(requestedFile, file) void
+        +sendDownloadError(requestedFile, message) void
         +sendFileList(files) void
     }
 
@@ -142,7 +146,7 @@ LoginController ..> DashboardController : passes user data
 
 DashboardController *-- ChatMessage : displays
 DashboardController ..> Session : reads client
-DashboardController ..> Client : sends messages/files/profile
+DashboardController ..> Client : sends messages/files/profile/downloads
 DashboardController ..> ApiKeyStore : stores Groq key
 DashboardController ..> GroqAiService : asks AI
 
