@@ -35,7 +35,4 @@ public class ApiKeyStore {
         }
     }
 
-    public Path getApiKeyFile() {
-        return API_KEY_FILE.toAbsolutePath();
-    }
 }

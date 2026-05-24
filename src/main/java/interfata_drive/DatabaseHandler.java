@@ -1,12 +1,22 @@
 package interfata_drive;
 
+import java.nio.file.Path;
 import java.sql.*;
 
 public class DatabaseHandler {
-    private static final String URL = "jdbc:sqlite:utilizatori.db";
+    private static final String DEFAULT_URL = "jdbc:sqlite:utilizatori.db";
+    private static String databaseUrl = DEFAULT_URL;
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL);
+        return DriverManager.getConnection(databaseUrl);
+    }
+
+    static void useDatabaseForTesting(Path databasePath) {
+        databaseUrl = "jdbc:sqlite:" + databasePath.toAbsolutePath();
+    }
+
+    static void resetDatabaseForTesting() {
+        databaseUrl = DEFAULT_URL;
     }
 
     public static void initDatabase() {
@@ -34,8 +44,6 @@ public class DatabaseHandler {
             pstmt.executeUpdate();
             return true;
         } catch (SQLException e) {
-            // Dacă ajunge aici, SQLite a dat eroare (cel mai des din cauza UNIQUE pe username)
-            e.printStackTrace(); // Verifică consola pentru detalii specifice
             return false;
         }
     }

@@ -1,5 +1,6 @@
 package server;
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,7 +14,8 @@ import java.util.List;
 import java.util.Map;
 
 public class MessageDatabase {
-    private static final String DB_URL = "jdbc:sqlite:mesaje.db";
+    private static final String DEFAULT_DB_URL = "jdbc:sqlite:mesaje.db";
+    private static String databaseUrl = DEFAULT_DB_URL;
     private static final int MAX_PROFILE_IMAGE_BASE64_LENGTH = 2_100_000;
 
     static {
@@ -22,6 +24,14 @@ public class MessageDatabase {
         } catch (ClassNotFoundException e) {
             throw new ExceptionInInitializerError("SQLite JDBC driver is missing from the runtime classpath. Run with Maven or add sqlite-jdbc to the run configuration.");
         }
+    }
+
+    static void useDatabaseForTesting(Path databasePath) {
+        databaseUrl = "jdbc:sqlite:" + databasePath.toAbsolutePath();
+    }
+
+    static void resetDatabaseForTesting() {
+        databaseUrl = DEFAULT_DB_URL;
     }
 
     public static void initDatabase() {
@@ -38,7 +48,7 @@ public class MessageDatabase {
                 "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
                 ")";
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
              Statement stmt = conn.createStatement()) {
             stmt.execute(messagesSql);
             stmt.execute(profilesSql);
@@ -50,7 +60,7 @@ public class MessageDatabase {
     public static void saveMessage(String sender, String message) {
         String sql = "INSERT INTO messages(sender, message) VALUES(?, ?)";
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, sender);
             pstmt.setString(2, message);
@@ -64,7 +74,7 @@ public class MessageDatabase {
         List<String> messages = new ArrayList<>();
         String sql = "SELECT sender, message FROM messages ORDER BY id ASC";
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
@@ -86,7 +96,7 @@ public class MessageDatabase {
         String sql = "INSERT INTO profiles(username, image_base64, updated_at) VALUES(?, ?, CURRENT_TIMESTAMP) " +
                 "ON CONFLICT(username) DO UPDATE SET image_base64 = excluded.image_base64, updated_at = CURRENT_TIMESTAMP";
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username);
             pstmt.setString(2, imageBase64);
@@ -102,7 +112,7 @@ public class MessageDatabase {
         Map<String, String> profiles = new LinkedHashMap<>();
         String sql = "SELECT username, image_base64 FROM profiles ORDER BY username ASC";
 
-        try (Connection conn = DriverManager.getConnection(DB_URL);
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 

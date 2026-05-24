@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -23,10 +24,15 @@ public class Server {
 
     private final int port;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
-    private final Path serverFilesDirectory = Paths.get("server_files");
+    private final Path serverFilesDirectory;
 
     Server(int port) {
+        this(port, Paths.get("server_files"));
+    }
+
+    Server(int port, Path serverFilesDirectory) {
         this.port = port;
+        this.serverFilesDirectory = serverFilesDirectory;
     }
 
     void start() {
@@ -155,6 +161,17 @@ public class Server {
 
                     System.out.println(username + " requested file list");
                     client.sendFileList(files);
+                } else if (type.equals("DOWNLOAD")) {
+                    String requestedFile = in.readUTF();
+                    Path fileToDownload = resolveServerFile(requestedFile);
+
+                    System.out.println(username + " requested file download: " + requestedFile);
+
+                    if (fileToDownload == null) {
+                        client.sendDownloadError(requestedFile, "Fisierul nu a fost gasit pe server.");
+                    } else {
+                        client.sendFileDownload(requestedFile, fileToDownload);
+                    }
                 } else {
                     System.out.println("Unknown packet type from " + username + ": " + type);
                 }
@@ -222,7 +239,7 @@ public class Server {
         return outputPath;
     }
 
-    private List<String> getServerFilesList() throws IOException {
+    List<String> getServerFilesList() throws IOException {
         List<String> fileNames = new ArrayList<>();
 
         if (!Files.exists(serverFilesDirectory)) {
@@ -237,6 +254,21 @@ public class Server {
         }
 
         return fileNames;
+    }
+
+    Path resolveServerFile(String requestedFile) throws IOException {
+        if (requestedFile == null || requestedFile.isBlank()) {
+            return null;
+        }
+
+        Path serverRoot = serverFilesDirectory.toAbsolutePath().normalize();
+        Path requestedPath = serverRoot.resolve(requestedFile).normalize();
+
+        if (!requestedPath.startsWith(serverRoot) || !Files.isRegularFile(requestedPath)) {
+            return null;
+        }
+
+        return requestedPath;
     }
 
     private Path getUniquePath(Path originalPath) {
@@ -315,6 +347,37 @@ public class Server {
                 out.writeUTF(username);
                 out.writeInt(profilePayload.length);
                 out.write(profilePayload);
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public synchronized void sendFileDownload(String requestedFile, Path file) {
+            try (InputStream input = Files.newInputStream(file)) {
+                out.writeUTF("FILE_DOWNLOAD");
+                out.writeUTF(requestedFile);
+                out.writeUTF(file.getFileName().toString());
+                out.writeLong(Files.size(file));
+
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+
+                while ((bytesRead = input.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public synchronized void sendDownloadError(String requestedFile, String message) {
+            try {
+                out.writeUTF("DOWNLOAD_ERROR");
+                out.writeUTF(requestedFile == null ? "" : requestedFile);
+                out.writeUTF(message);
                 out.flush();
             } catch (IOException e) {
                 e.printStackTrace();
