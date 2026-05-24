@@ -26,6 +26,7 @@ namespace interfata_drive {
     class DashboardController {
         -String currentUser
         -Map profileImages
+        -List allFiles
         +initialize() void
         +setUserData(fullName) void
         -sendMessageAction() void
@@ -41,7 +42,6 @@ namespace interfata_drive {
         +getConnection() Connection
         +initDatabase() void
         +registerUser(fullname, user, pass) boolean
-        +validateLogin(user, pass) boolean
         +getFullName(user, pass) String
     }
 
@@ -56,40 +56,12 @@ namespace interfata_drive {
 namespace core {
     class Session {
         -Client client
-        -User currentUser
         +setClient(client) void
         +getClient() Client
-        +setCurrentUser(user) void
-        +getCurrentUser() User
-    }
-
-    class User {
-        -List files
-        -String fullName
-        +getFullName() String
-        +addFile(path) void
-        +getFiles() List
-        +getFilePaths() List
-    }
-
-    class UserFile {
-        -Path path
-        +getPath() Path
-        +getPathAsString() String
-        +getName() String
-    }
-
-    class Utils {
-        +getLocalIpAddress() String
-        +main(args) void
     }
 }
 
 namespace client {
-    class ClientMain {
-        +main(args) void
-    }
-
     class Client {
         -String host
         -int port
@@ -127,7 +99,6 @@ namespace server {
 
     class ClientHandler {
         -String username
-        -Socket socket
         -DataOutputStream out
         +getUsername() String
         +sendMessage(message) void
@@ -160,55 +131,26 @@ namespace ai {
     }
 }
 
-namespace model {
-    class ProtocolMessage {
-        -MessageType type
-        -String sender
-        -String text
-        +getType() MessageType
-        +getSender() String
-        +getText() String
-    }
-
-    class MessageType {
-        <<enumeration>>
-        CHAT
-        USER_JOIN
-        USER_LEAVE
-    }
-}
-
 Launcher ..> Main : starts
 Main ..> DatabaseHandler : initializes users DB
 Main ..> LoginController : loads FXML
 
 LoginController ..> DatabaseHandler : login/register
 LoginController ..> Client : creates connection
-LoginController ..> Session : saves session
-LoginController ..> User : creates user
+LoginController ..> Session : saves client
 LoginController ..> DashboardController : passes user data
 
 DashboardController *-- ChatMessage : displays
-DashboardController ..> Session : reads client/user
+DashboardController ..> Session : reads client
 DashboardController ..> Client : sends messages/files/profile
-DashboardController ..> User : adds files
-DashboardController ..> UserFile : renders file cards
 DashboardController ..> ApiKeyStore : stores Groq key
 DashboardController ..> GroqAiService : asks AI
 
 Session --> Client
-Session --> User
-User *-- "0..*" UserFile
-
-ClientMain ..> Client : console client
-ClientMain ..> Session
 Client <..> Server : socket protocol
-
 ServerMain ..> Server : starts port 5000
 Server *-- "0..*" ClientHandler : connected clients
 Server ..> MessageDatabase : persists chat/profile data
-
-ProtocolMessage --> MessageType
 
 note for DatabaseHandler "Uses utilizatori.db for accounts"
 note for MessageDatabase "Uses mesaje.db for messages and profile images"

@@ -3,7 +3,6 @@ package interfata_drive;
 import ai.ApiKeyStore;
 import ai.GroqAiService;
 import core.Session;
-import core.UserFile;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
@@ -29,8 +28,8 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,14 +65,12 @@ public class DashboardController {
 
         if (Session.getClient() != null) {
             Session.getClient().setOnMessageReceived(message -> Platform.runLater(() -> handleServerMessage(message)));
+            Session.getClient().setOnFileListReceived(files -> Platform.runLater(() -> {
+                allFiles = new ArrayList<>(files);
+                refreshFilesView();
+            }));
+            Session.getClient().requestFileList();
         }
-        
-        Session.getClient().setOnFileListReceived(files ->
-        Platform.runLater(() -> {
-            allFiles = files;
-            refreshFilesView(allFiles);
-        }));
-        Session.getClient().requestFileList();
 
         sendBtn.setOnAction(event -> sendMessageAction());
         addFileBtn.setOnAction(event -> handleAddFileAction());
@@ -82,11 +79,11 @@ public class DashboardController {
         filesBtn.setOnAction(event -> showFilesPage());
         profileBtn.setOnAction(event -> showProfilePage());
         chooseProfileImageBtn.setOnAction(event -> chooseProfileImage());
+        searchField.textProperty().addListener((obs, oldText, newText) -> refreshFilesView());
 
         showFilesPage();
         refreshFilesView();
         messageList.getItems().add(ChatMessage.server("Scrie /ai urmat de intrebare pentru asistent sau /api key cheia_ta_groq pentru conectare."));
-        searchField.textProperty().addListener((obs, oldText, newText) -> refreshFilesView(allFiles));
     }
 
     public void setUserData(String fullName) {
@@ -102,6 +99,8 @@ public class DashboardController {
         profilePage.setManaged(false);
         filesBtn.setStyle(activeMenuStyle());
         profileBtn.setStyle(inactiveMenuStyle());
+        searchField.setVisible(true);
+        searchField.setManaged(true);
     }
 
     private void showProfilePage() {
@@ -111,6 +110,8 @@ public class DashboardController {
         profilePage.setManaged(true);
         filesBtn.setStyle(inactiveMenuStyle());
         profileBtn.setStyle(activeMenuStyle());
+        searchField.setVisible(false);
+        searchField.setManaged(false);
     }
 
     private String activeMenuStyle() {
@@ -351,41 +352,77 @@ public class DashboardController {
             return;
         }
 
-        Path filePath = selectedFile.toPath().toAbsolutePath().normalize();
-        String fileName = filePath.getFileName().toString();
+        String fileName = selectedFile.getName();
 
-        if (Session.getCurrentUser() != null) {
-            Session.getCurrentUser().addFile(filePath);
-            Session.getClient().requestFileList();
-            refreshFilesView();
+        if (Session.getClient() == null || !Session.getClient().isConnected()) {
+            showAlert("Eroare", "Nu exista conexiune la server pentru incarcarea fisierului.");
+            return;
         }
 
-        if (Session.getClient() != null && Session.getClient().isConnected()) {
-            Thread uploadThread = new Thread(() -> Session.getClient().sendFile(selectedFile));
-            uploadThread.setDaemon(true);
-            uploadThread.start();
-        }
+        showFilesPage();
+        addFileBtn.setDisable(true);
+        messageList.getItems().add(ChatMessage.server("Se incarca fisierul: " + fileName));
 
-        messageList.getItems().add(ChatMessage.server("Fisier adaugat: " + fileName));
+        Thread uploadThread = new Thread(() -> {
+            try {
+                Session.getClient().sendFile(selectedFile);
+                Session.getClient().requestFileList();
+            } finally {
+                Platform.runLater(() -> addFileBtn.setDisable(false));
+            }
+        });
+        uploadThread.setDaemon(true);
+        uploadThread.start();
     }
 
     private void refreshFilesView() {
         filesFlowPane.getChildren().clear();
 
-        if (Session.getCurrentUser() == null) {
-            return;
+        String query = normalizeSearchText(searchField == null ? "" : searchField.getText());
+        boolean hasVisibleFiles = false;
+
+        for (String file : allFiles) {
+            if (matchesSearch(file, query)) {
+                filesFlowPane.getChildren().add(createFileCard(file));
+                hasVisibleFiles = true;
+            }
         }
 
-        for (UserFile userFile : Session.getCurrentUser().getFiles()) {
-            filesFlowPane.getChildren().add(createFileCard(userFile));
+        if (!hasVisibleFiles) {
+            filesFlowPane.getChildren().add(createEmptyFilesLabel(query));
         }
     }
 
-    private VBox createFileCard(UserFile file) {
+    private boolean matchesSearch(String filePath, String query) {
+        if (query.isEmpty()) {
+            return true;
+        }
+
+        return normalizeSearchText(filePath).contains(query)
+                || normalizeSearchText(getDisplayFileName(filePath)).contains(query);
+    }
+
+    private String normalizeSearchText(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        return value.toLowerCase(Locale.ROOT).trim();
+    }
+
+    private Label createEmptyFilesLabel(String query) {
+        String text = query.isEmpty() ? "Nu exista fisiere incarcate." : "Nu s-au gasit fisiere pentru cautarea introdusa.";
+        Label emptyLabel = new Label(text);
+        emptyLabel.setTextFill(Color.web("#607D8B"));
+        emptyLabel.setStyle("-fx-font-size: 13px;");
+        return emptyLabel;
+    }
+
+    private VBox createFileCard(String filePath) {
         Label iconLabel = new Label("📄");
         iconLabel.setStyle("-fx-font-size: 42px;");
 
-        Label nameLabel = new Label(file.getName());
+        Label nameLabel = new Label(getDisplayFileName(filePath));
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(130);
         nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
@@ -403,28 +440,14 @@ public class DashboardController {
         fileCard.getChildren().addAll(iconLabel, nameLabel);
         return fileCard;
     }
-    
-    private VBox createFileCard(String fileName) {
-        Label iconLabel = new Label("📄");
-        iconLabel.setStyle("-fx-font-size: 42px;");
 
-        Label nameLabel = new Label(fileName);
-        nameLabel.setWrapText(true);
-        nameLabel.setMaxWidth(130);
-        nameLabel.setStyle("-fx-text-fill: #37474F; -fx-font-size: 13px;");
+    private String getDisplayFileName(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return "Fisier fara nume";
+        }
 
-        VBox fileCard = new VBox(8);
-        fileCard.setAlignment(Pos.CENTER);
-        fileCard.setPrefWidth(150);
-        fileCard.setPrefHeight(130);
-        fileCard.setStyle(
-                "-fx-background-color: white;" +
-                "-fx-background-radius: 12;" +
-                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.08), 10, 0, 0, 4);"
-        );
-
-        fileCard.getChildren().addAll(iconLabel, nameLabel);
-        return fileCard;
+        int slashIndex = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
+        return slashIndex >= 0 ? filePath.substring(slashIndex + 1) : filePath;
     }
 
     private void showAlert(String title, String message) {
@@ -523,19 +546,6 @@ public class DashboardController {
 
         public static ChatMessage server(String text) {
             return new ChatMessage("SERVER", text, true);
-        }
-    }
-    
-    
-    private void refreshFilesView(List<String> files) {
-        filesFlowPane.getChildren().clear();
-        String query = searchField.getText().toLowerCase().trim();
-
-        for (String file : files) {
-            String fileName = file.substring(file.lastIndexOf("/") + 1).toLowerCase();
-            if (query.isEmpty() || fileName.contains(query)) {
-                filesFlowPane.getChildren().add(createFileCard(file));
-            }
         }
     }
 }

@@ -16,7 +16,6 @@ import java.io.IOException;
 
 import client.Client;
 import core.Session;
-import core.User;
 
 public class LoginController {
 
@@ -90,7 +89,6 @@ public class LoginController {
                 client.connect();
 
                 Session.setClient(client);
-                Session.setCurrentUser(new User());
 
                 Platform.runLater(() -> {
                     loginBtn.setDisable(false);
