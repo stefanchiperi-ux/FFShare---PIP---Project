@@ -151,7 +151,6 @@ namespace ai {
         -String API_KEY_PROPERTY
         +loadApiKey() String
         +saveApiKey(apiKey) void
-        +getApiKeyFile() Path
     }
 
     class GroqAiService {
