@@ -12,6 +12,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+/**
+ * Teste pentru fisierele salvate de server.
+ */
 class ServerFileStorageTest {
 
     @TempDir
@@ -20,11 +23,19 @@ class ServerFileStorageTest {
     private Server server;
 
     @BeforeEach
+    /**
+     * Creeaza un server de test cu folder temporar.
+     */
     void setUp() {
         server = new Server(0, tempDir);
     }
 
     @Test
+    /**
+     * Verifica lista de fisiere cu cai relative.
+     *
+     * @throws IOException daca fisierele de test nu pot fi create
+     */
     void getServerFilesListReturnsRelativePathsWithForwardSlashes() throws IOException {
         Path userDir = Files.createDirectories(tempDir.resolve("ana"));
         Files.writeString(userDir.resolve("raport.txt"), "continut");
@@ -34,6 +45,11 @@ class ServerFileStorageTest {
     }
 
     @Test
+    /**
+     * Verifica rezolvarea unui fisier existent in folderul serverului.
+     *
+     * @throws IOException daca fisierul de test nu poate fi creat
+     */
     void resolveServerFileAcceptsExistingRegularFileInsideServerDirectory() throws IOException {
         Path file = Files.createDirectories(tempDir.resolve("ana")).resolve("raport.txt");
         Files.writeString(file, "continut");
@@ -42,6 +58,11 @@ class ServerFileStorageTest {
     }
 
     @Test
+    /**
+     * Verifica respingerea cererilor goale sau inexistente.
+     *
+     * @throws IOException daca folderul de test nu poate fi creat
+     */
     void resolveServerFileRejectsMissingDirectoriesAndBlankRequests() throws IOException {
         Files.createDirectories(tempDir.resolve("ana"));
 
@@ -52,6 +73,11 @@ class ServerFileStorageTest {
     }
 
     @Test
+    /**
+     * Verifica blocarea cailor din afara folderului serverului.
+     *
+     * @throws IOException daca fisierul de test nu poate fi creat
+     */
     void resolveServerFileRejectsPathTraversalAndAbsolutePathsOutsideServerDirectory() throws IOException {
         Path outsideFile = tempDir.resolveSibling("outside-download-test.txt");
         Files.writeString(outsideFile, "secret");

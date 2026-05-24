@@ -36,6 +36,9 @@ import java.util.Map;
 
 import java.util.List;
 
+/**
+ * Controleaza ecranul principal al aplicatiei.
+ */
 public class DashboardController {
 
     @FXML private Label userNameLabel;
@@ -60,6 +63,9 @@ public class DashboardController {
     private List<String> allFiles = new ArrayList<>();
 
     @FXML
+    /**
+     * Pregateste lista de mesaje, butoanele si lista de fisiere.
+     */
     public void initialize() {
         messageList.setCellFactory(listView -> new ChatMessageCell());
 
@@ -86,12 +92,20 @@ public class DashboardController {
         messageList.getItems().add(ChatMessage.server("Scrie /ai urmat de intrebare pentru asistent sau /api key cheia_ta_groq pentru conectare."));
     }
 
+    /**
+     * Seteaza datele utilizatorului logat in interfata.
+     *
+     * @param fullName numele complet al utilizatorului
+     */
     public void setUserData(String fullName) {
         this.currentUser = fullName;
         userNameLabel.setText(fullName);
         profileNameLabel.setText(fullName);
     }
 
+    /**
+     * Afiseaza pagina cu fisiere.
+     */
     private void showFilesPage() {
         filesPage.setVisible(true);
         filesPage.setManaged(true);
@@ -103,6 +117,9 @@ public class DashboardController {
         searchField.setManaged(true);
     }
 
+    /**
+     * Afiseaza pagina de profil.
+     */
     private void showProfilePage() {
         filesPage.setVisible(false);
         filesPage.setManaged(false);
@@ -114,14 +131,27 @@ public class DashboardController {
         searchField.setManaged(false);
     }
 
+    /**
+     * Intoarce stilul pentru butonul activ din meniu.
+     *
+     * @return stil CSS pentru buton activ
+     */
     private String activeMenuStyle() {
         return "-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 8;";
     }
 
+    /**
+     * Intoarce stilul pentru butonul inactiv din meniu.
+     *
+     * @return stil CSS pentru buton inactiv
+     */
     private String inactiveMenuStyle() {
         return "-fx-background-color: transparent; -fx-text-fill: #607D8B;";
     }
 
+    /**
+     * Permite alegerea si trimiterea pozei de profil.
+     */
     private void chooseProfileImage() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Alege poza de profil");
@@ -161,6 +191,9 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Proceseaza mesajul scris si il trimite sau ruleaza o comanda.
+     */
     private void sendMessageAction() {
         String message = writeMessageField.getText();
 
@@ -200,6 +233,11 @@ public class DashboardController {
         sendThread.start();
     }
 
+    /**
+     * Salveaza cheia API primita prin comanda din chat.
+     *
+     * @param command comanda completa scrisa de utilizator
+     */
     private void handleApiKeyCommand(String command) {
         String apiKey = command.replaceFirst("(?i)^/api\\s+key", "").trim();
 
@@ -216,6 +254,11 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Trimite intrebarea catre asistentul AI.
+     *
+     * @param command comanda completa cu intrebarea
+     */
     private void handleAiCommand(String command) {
         String prompt = command.replaceFirst("(?i)^/ai", "").trim();
 
@@ -247,6 +290,11 @@ public class DashboardController {
         aiThread.start();
     }
 
+    /**
+     * Interpreteaza mesajele primite de la server.
+     *
+     * @param rawMessage mesajul in formatul protocolului
+     */
     private void handleServerMessage(String rawMessage) {
         if (rawMessage == null) {
             return;
@@ -288,6 +336,12 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Salveaza temporar poza de profil primita.
+     *
+     * @param username utilizatorul pozei
+     * @param imageBase64 imaginea codata Base64
+     */
     private void saveProfileImageInMemory(String username, String imageBase64) {
         try {
             byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
@@ -304,10 +358,23 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Imparte un mesaj primit dupa separatorul protocolului.
+     *
+     * @param rawMessage mesajul complet
+     * @param limit numarul maxim de parti
+     * @return partile mesajului
+     */
     private String[] splitProtocol(String rawMessage, int limit) {
         return rawMessage.split("\\|", limit);
     }
 
+    /**
+     * Decodeaza textul primit prin protocol.
+     *
+     * @param value textul escapat
+     * @return textul normal
+     */
     private String unescape(String value) {
         if (value == null) {
             return "";
@@ -342,6 +409,9 @@ public class DashboardController {
         return result.toString();
     }
 
+    /**
+     * Alege si trimite un fisier catre server.
+     */
     private void handleAddFileAction() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Alege fisier");
@@ -375,6 +445,11 @@ public class DashboardController {
         uploadThread.start();
     }
 
+    /**
+     * Cere descarcarea unui fisier selectat.
+     *
+     * @param filePath calea fisierului pe server
+     */
     private void handleDownloadFileAction(String filePath) {
         if (Session.getClient() == null || !Session.getClient().isConnected()) {
             showAlert("Eroare", "Nu exista conexiune la server pentru descarcarea fisierului.");
@@ -395,6 +470,9 @@ public class DashboardController {
         messageList.getItems().add(ChatMessage.server("Se descarca fisierul: " + getDisplayFileName(filePath)));
     }
 
+    /**
+     * Reface lista vizuala de fisiere dupa cautare sau actualizare.
+     */
     private void refreshFilesView() {
         filesFlowPane.getChildren().clear();
 
@@ -413,6 +491,13 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Verifica daca un fisier corespunde cautarii.
+     *
+     * @param filePath calea fisierului
+     * @param query textul cautat
+     * @return true daca fisierul trebuie afisat
+     */
     private boolean matchesSearch(String filePath, String query) {
         if (query.isEmpty()) {
             return true;
@@ -422,6 +507,12 @@ public class DashboardController {
                 || normalizeSearchText(getDisplayFileName(filePath)).contains(query);
     }
 
+    /**
+     * Normalizeaza textul folosit pentru cautare.
+     *
+     * @param value textul original
+     * @return textul cu litere mici si fara spatii la margini
+     */
     private String normalizeSearchText(String value) {
         if (value == null) {
             return "";
@@ -430,6 +521,12 @@ public class DashboardController {
         return value.toLowerCase(Locale.ROOT).trim();
     }
 
+    /**
+     * Creeaza mesajul afisat cand nu exista fisiere.
+     *
+     * @param query textul cautat
+     * @return eticheta pentru stare goala
+     */
     private Label createEmptyFilesLabel(String query) {
         String text = query.isEmpty() ? "Nu exista fisiere incarcate." : "Nu s-au gasit fisiere pentru cautarea introdusa.";
         Label emptyLabel = new Label(text);
@@ -439,6 +536,12 @@ public class DashboardController {
     }
 
 
+    /**
+     * Creeaza cardul pentru un fisier din lista.
+     *
+     * @param filePath calea fisierului
+     * @return cardul vizual al fisierului
+     */
     private VBox createFileCard(String filePath) {
         Label iconLabel = new Label("📄");
         iconLabel.setStyle("-fx-font-size: 42px;");
@@ -473,6 +576,12 @@ public class DashboardController {
         return fileCard;
     }
 
+    /**
+     * Extrage numele fisierului din cale.
+     *
+     * @param filePath calea completa sau relativa
+     * @return numele afisat in interfata
+     */
     private String getDisplayFileName(String filePath) {
         if (filePath == null || filePath.isBlank()) {
             return "Fisier fara nume";
@@ -482,6 +591,12 @@ public class DashboardController {
         return slashIndex >= 0 ? filePath.substring(slashIndex + 1) : filePath;
     }
 
+    /**
+     * Afiseaza o alerta simpla pentru utilizator.
+     *
+     * @param title titlul alertei
+     * @param message mesajul alertei
+     */
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
@@ -490,8 +605,17 @@ public class DashboardController {
         alert.showAndWait();
     }
 
+    /**
+     * Celula custom pentru afisarea mesajelor din chat.
+     */
     private class ChatMessageCell extends ListCell<ChatMessage> {
         @Override
+        /**
+         * Actualizeaza continutul unei celule din lista.
+         *
+         * @param item mesajul afisat
+         * @param empty true daca celula este goala
+         */
         protected void updateItem(ChatMessage item, boolean empty) {
             super.updateItem(item, empty);
 
@@ -535,6 +659,12 @@ public class DashboardController {
             setText(null);
         }
 
+        /**
+         * Creeaza avatarul pentru un utilizator.
+         *
+         * @param username numele utilizatorului
+         * @return nodul grafic pentru avatar
+         */
         private javafx.scene.Node createAvatar(String username) {
             Image image = profileImages.get(username);
 
@@ -557,6 +687,12 @@ public class DashboardController {
             return initials;
         }
 
+        /**
+         * Calculeaza initiala afisata in avatar.
+         *
+         * @param username numele utilizatorului
+         * @return prima litera sau semnul intrebarii
+         */
         private String getInitial(String username) {
             if (username == null || username.isBlank()) {
                 return "?";
@@ -565,17 +701,33 @@ public class DashboardController {
         }
     }
 
+    /**
+     * Model simplu pentru un mesaj din chat.
+     */
     public static class ChatMessage {
         private final String sender;
         private final String text;
         private final boolean serverMessage;
 
+        /**
+         * Creeaza un mesaj de chat.
+         *
+         * @param sender expeditorul mesajului
+         * @param text continutul mesajului
+         * @param serverMessage true daca mesajul este de sistem
+         */
         public ChatMessage(String sender, String text, boolean serverMessage) {
             this.sender = sender;
             this.text = text;
             this.serverMessage = serverMessage;
         }
 
+        /**
+         * Creeaza un mesaj trimis de server.
+         *
+         * @param text textul mesajului
+         * @return mesajul de server
+         */
         public static ChatMessage server(String text) {
             return new ChatMessage("SERVER", text, true);
         }

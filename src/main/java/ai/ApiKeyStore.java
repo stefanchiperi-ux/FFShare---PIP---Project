@@ -8,10 +8,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
 
+/**
+ * Gestioneaza cheia API Groq salvata local.
+ */
 public class ApiKeyStore {
     private static final Path API_KEY_FILE = Paths.get("groq-api.properties");
     private static final String API_KEY_PROPERTY = "groq.api.key";
 
+    /**
+     * Citeste cheia API din fisierul de configurare.
+     *
+     * @return cheia API sau null daca nu exista
+     * @throws IOException daca fisierul nu poate fi citit
+     */
     public String loadApiKey() throws IOException {
         if (!Files.exists(API_KEY_FILE)) {
             return null;
@@ -26,6 +35,12 @@ public class ApiKeyStore {
         return apiKey == null || apiKey.isBlank() ? null : apiKey.trim();
     }
 
+    /**
+     * Salveaza cheia API in fisierul local.
+     *
+     * @param apiKey cheia introdusa de utilizator
+     * @throws IOException daca cheia nu poate fi salvata
+     */
     public void saveApiKey(String apiKey) throws IOException {
         Properties properties = new Properties();
         properties.setProperty(API_KEY_PROPERTY, apiKey.trim());

@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+/**
+ * Clientul care comunica cu serverul aplicatiei.
+ */
 public class Client {
 
     private static final int MAX_PROFILE_IMAGE_PAYLOAD_BYTES = 2_100_000;
@@ -35,16 +38,33 @@ public class Client {
     private final List<String> pendingMessages = new ArrayList<>();
     private final Map<String, File> pendingDownloads = new ConcurrentHashMap<>();
 
+    /**
+     * Creeaza un client cu adresa si port personalizate.
+     *
+     * @param host adresa serverului
+     * @param port portul serverului
+     * @param username numele utilizatorului
+     */
     public Client(String host, int port, String username) {
         this.host = host;
         this.port = port;
         this.username = username;
     }
 
+    /**
+     * Creeaza un client cu setarile implicite de conectare.
+     *
+     * @param username numele utilizatorului
+     */
     public Client(String username) {
         this.username = username;
     }
 
+    /**
+     * Seteaza actiunea apelata cand se primeste un mesaj.
+     *
+     * @param onMessageReceived actiunea pentru mesajele primite
+     */
     public synchronized void setOnMessageReceived(Consumer<String> onMessageReceived) {
         this.onMessageReceived = onMessageReceived;
 
@@ -56,10 +76,20 @@ public class Client {
         }
     }
 
+    /**
+     * Seteaza actiunea apelata cand se primeste lista de fisiere.
+     *
+     * @param onFileListReceived actiunea pentru lista de fisiere
+     */
     public void setOnFileListReceived(Consumer<List<String>> onFileListReceived) {
         this.onFileListReceived = onFileListReceived;
     }
 
+    /**
+     * Deschide conexiunea cu serverul.
+     *
+     * @throws IOException daca serverul nu poate fi accesat
+     */
     public void connect() throws IOException {
         this.socket = new Socket();
         this.socket.connect(new InetSocketAddress(host, port), 1500);
@@ -77,6 +107,9 @@ public class Client {
         startListening();
     }
 
+    /**
+     * Porneste firul care asculta raspunsurile serverului.
+     */
     private void startListening() {
         Thread listenerThread = new Thread(() -> {
             try {
@@ -133,6 +166,11 @@ public class Client {
         listenerThread.start();
     }
 
+    /**
+     * Trimite mesajul catre interfata sau il pastreaza temporar.
+     *
+     * @param message mesajul primit
+     */
     private synchronized void handleReceivedMessage(String message) {
         if (onMessageReceived != null) {
             onMessageReceived.accept(message);
@@ -141,6 +179,11 @@ public class Client {
         }
     }
 
+    /**
+     * Trimite un mesaj text catre server.
+     *
+     * @param text mesajul scris de utilizator
+     */
     public synchronized void sendMessage(String text) {
         if (out == null) {
             return;
@@ -155,6 +198,11 @@ public class Client {
         }
     }
 
+    /**
+     * Trimite poza de profil catre server.
+     *
+     * @param imageBase64 imaginea codata Base64
+     */
     public synchronized void sendProfileImage(String imageBase64) {
         if (out == null) {
             return;
@@ -177,6 +225,11 @@ public class Client {
         }
     }
 
+    /**
+     * Trimite un fisier catre server.
+     *
+     * @param file fisierul ales de utilizator
+     */
     public synchronized void sendFile(File file) {
         if (out == null || file == null || !file.exists() || !file.isFile()) {
             return;
@@ -202,6 +255,12 @@ public class Client {
         }
     }
 
+    /**
+     * Cere serverului descarcarea unui fisier.
+     *
+     * @param filePath calea fisierului pe server
+     * @param destination locul unde se salveaza fisierul
+     */
     public synchronized void requestFileDownload(String filePath, File destination) {
         if (out == null || filePath == null || filePath.isBlank() || destination == null) {
             return;
@@ -220,6 +279,9 @@ public class Client {
         }
     }
 
+    /**
+     * Cere serverului lista fisierelor disponibile.
+     */
     public synchronized void requestFileList() {
         if (out == null) {
             return;
@@ -234,6 +296,13 @@ public class Client {
         }
     }
 
+    /**
+     * Citeste un pachet de bytes de la server.
+     *
+     * @param maxSize dimensiunea maxima acceptata
+     * @return continutul citit
+     * @throws IOException daca dimensiunea sau citirea esueaza
+     */
     private byte[] readPayload(int maxSize) throws IOException {
         int payloadSize = in.readInt();
 
@@ -246,6 +315,11 @@ public class Client {
         return payload;
     }
 
+    /**
+     * Primeste si salveaza fisierul descarcat.
+     *
+     * @throws IOException daca fisierul nu poate fi primit
+     */
     private void receiveFileDownload() throws IOException {
         String filePath = in.readUTF();
         String fileName = in.readUTF();
@@ -321,6 +395,12 @@ public class Client {
         handleReceivedMessage("__SERVER__|Fisier descarcat: " + destination.getAbsolutePath());
     }
 
+    /**
+     * Arunca bytes primiti cand fisierul nu poate fi salvat.
+     *
+     * @param bytesToDiscard numarul de bytes de ignorat
+     * @throws IOException daca citirea este intrerupta
+     */
     private void discardBytes(long bytesToDiscard) throws IOException {
         byte[] buffer = new byte[4096];
         long remainingBytes = bytesToDiscard;
@@ -337,10 +417,20 @@ public class Client {
         }
     }
 
+    /**
+     * Verifica daca exista conexiune activa cu serverul.
+     *
+     * @return true daca clientul este conectat
+     */
     public boolean isConnected() {
         return socket != null && socket.isConnected() && !socket.isClosed() && out != null;
     }
 
+    /**
+     * Inchide conexiunea cu serverul.
+     *
+     * @throws IOException daca socketul nu poate fi inchis
+     */
     public void close() throws IOException {
         running = false;
 
@@ -349,6 +439,12 @@ public class Client {
         }
     }
 
+    /**
+     * Escapeaza textul folosit in protocolul aplicatiei.
+     *
+     * @param value textul original
+     * @return textul pregatit pentru trimitere
+     */
     private static String escape(String value) {
         if (value == null) {
             return "";

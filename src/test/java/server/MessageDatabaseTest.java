@@ -14,6 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+/**
+ * Teste pentru baza de date cu mesaje.
+ */
 class MessageDatabaseTest {
 
     private static final String PNG_BASE64 = Base64.getEncoder().encodeToString(new byte[] {
@@ -24,17 +27,26 @@ class MessageDatabaseTest {
     Path tempDir;
 
     @BeforeEach
+    /**
+     * Pregateste baza de date temporara pentru test.
+     */
     void setUp() {
         MessageDatabase.useDatabaseForTesting(tempDir.resolve("messages.db"));
         MessageDatabase.initDatabase();
     }
 
     @AfterEach
+    /**
+     * Reseteaza baza de date dupa test.
+     */
     void tearDown() {
         MessageDatabase.resetDatabaseForTesting();
     }
 
     @Test
+    /**
+     * Verifica salvarea mesajelor in ordinea corecta.
+     */
     void saveMessageReturnsEscapedMessagesInInsertionOrder() {
         MessageDatabase.saveMessage("Ana", "Salut | lume");
         MessageDatabase.saveMessage("Bob", "Linia 1\nLinia 2");
@@ -46,6 +58,9 @@ class MessageDatabaseTest {
     }
 
     @Test
+    /**
+     * Verifica acceptarea pozelor valide si respingerea celor invalide.
+     */
     void profileImagesAcceptValidPngBase64AndRejectInvalidPayloads() {
         assertTrue(MessageDatabase.saveProfileImage("Ana", PNG_BASE64));
         assertFalse(MessageDatabase.saveProfileImage("Bob", "not-base64"));

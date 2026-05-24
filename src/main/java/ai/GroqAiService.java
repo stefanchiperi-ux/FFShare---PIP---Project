@@ -8,6 +8,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
+/**
+ * Trimite intrebari catre serviciul Groq AI.
+ */
 public class GroqAiService {
     private static final String API_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final String MODEL = "llama-3.3-70b-versatile";
@@ -16,6 +19,15 @@ public class GroqAiService {
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
+    /**
+     * Trimite o intrebare catre modelul AI si intoarce raspunsul.
+     *
+     * @param apiKey cheia pentru acces la API
+     * @param prompt intrebarea utilizatorului
+     * @return raspunsul primit de la AI
+     * @throws IOException daca cererea sau raspunsul sunt invalide
+     * @throws InterruptedException daca firul este intrerupt
+     */
     public String ask(String apiKey, String prompt) throws IOException, InterruptedException {
         String requestBody = """
                 {
@@ -50,6 +62,13 @@ public class GroqAiService {
         return extractContent(response.body());
     }
 
+    /**
+     * Extrage textul raspunsului din JSON-ul primit.
+     *
+     * @param json raspunsul complet de la API
+     * @return continutul mesajului AI
+     * @throws IOException daca formatul JSON nu este valid
+     */
     private String extractContent(String json) throws IOException {
         String target = "\"content\":";
         int contentIndex = json.indexOf(target);
@@ -84,6 +103,12 @@ public class GroqAiService {
         throw new IOException("Raspuns AI neterminat.");
     }
 
+    /**
+     * Pregateste textul pentru a fi pus intr-un JSON.
+     *
+     * @param text textul original
+     * @return textul escapat pentru JSON
+     */
     private String escapeJson(String text) {
         return text
                 .replace("\\", "\\\\")
@@ -93,6 +118,12 @@ public class GroqAiService {
                 .replace("\t", "\\t");
     }
 
+    /**
+     * Transforma un caracter escapat in caracter normal.
+     *
+     * @param escapedChar caracterul dupa backslash
+     * @return caracterul real
+     */
     private char unescapeJsonChar(char escapedChar) {
         return switch (escapedChar) {
             case 'n' -> '\n';

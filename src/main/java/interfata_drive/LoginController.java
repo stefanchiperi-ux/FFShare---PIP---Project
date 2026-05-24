@@ -1,22 +1,24 @@
 package interfata_drive;
 
+import client.Client;
+import core.Session;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.stage.Stage;
 
 import java.io.IOException;
 
-import client.Client;
-import core.Session;
-
+/**
+ * Controleaza ecranul de autentificare si inregistrare.
+ */
 public class LoginController {
 
     @FXML private TextField nameField;
@@ -27,6 +29,9 @@ public class LoginController {
 
     private boolean isRegisterMode = false;
 
+    /**
+     * Pregateste evenimentele pentru butoanele din formular.
+     */
     @FXML
     public void initialize() {
         nameField.setVisible(false);
@@ -43,28 +48,34 @@ public class LoginController {
         toggleBtn.setOnAction(event -> toggleMode());
     }
 
+    /**
+     * Schimba formularul intre login si inregistrare.
+     */
     private void toggleMode() {
         isRegisterMode = !isRegisterMode;
 
         if (isRegisterMode) {
             nameField.setVisible(true);
             nameField.setManaged(true);
-            loginBtn.setText("Înregistrare");
-            toggleBtn.setText("Ai deja cont? Conectează-te");
+            loginBtn.setText("Inregistrare");
+            toggleBtn.setText("Ai deja cont? Conecteaza-te");
         } else {
             nameField.setVisible(false);
             nameField.setManaged(false);
             loginBtn.setText("Conectare");
-            toggleBtn.setText("Creează cont nou");
+            toggleBtn.setText("Creeaza cont nou");
         }
     }
 
+    /**
+     * Verifica datele si conecteaza utilizatorul.
+     */
     private void handleLogin() {
         String user = userField.getText();
         String pass = passField.getText();
 
         if (user.isEmpty() || pass.isEmpty()) {
-            showAlert("Eroare", "Username-ul și parola sunt obligatorii!");
+            showAlert("Eroare", "Username-ul si parola sunt obligatorii!");
             return;
         }
 
@@ -78,7 +89,7 @@ public class LoginController {
                 Platform.runLater(() -> {
                     loginBtn.setDisable(false);
                     toggleBtn.setDisable(false);
-                    showAlert("Eroare", "Utilizator sau parolă incorectă!");
+                    showAlert("Eroare", "Utilizator sau parola incorecta!");
                 });
                 return;
             }
@@ -111,23 +122,26 @@ public class LoginController {
         loginThread.start();
     }
 
+    /**
+     * Verifica datele si creeaza un cont nou.
+     */
     private void handleRegister() {
         String name = nameField.getText();
         String user = userField.getText();
         String pass = passField.getText();
 
         if (name.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-            showAlert("Eroare", "Toate câmpurile sunt obligatorii pentru înregistrare!");
+            showAlert("Eroare", "Toate campurile sunt obligatorii pentru inregistrare!");
             return;
         }
 
         if (user.length() < 6 || pass.length() < 6) {
-            showAlert("Eroare", "Username-ul și parola trebuie să conțină minim 6 caractere!");
+            showAlert("Eroare", "Username-ul si parola trebuie sa contina minim 6 caractere!");
             return;
         }
 
         if (!pass.matches(".*\\d.*") || !pass.matches(".*[^a-zA-Z0-9].*")) {
-            showAlert("Eroare", "Parola trebuie să conțină minim o cifră și minim un caracter special!");
+            showAlert("Eroare", "Parola trebuie sa contina minim o cifra si minim un caracter special!");
             return;
         }
 
@@ -142,10 +156,10 @@ public class LoginController {
                 toggleBtn.setDisable(false);
 
                 if (success) {
-                    showAlert("Succes", "Cont creat cu succes! Acum te poți loga.");
+                    showAlert("Succes", "Cont creat cu succes! Acum te poti loga.");
                     toggleMode();
                 } else {
-                    showAlert("Eroare", "Utilizatorul există deja!");
+                    showAlert("Eroare", "Utilizatorul exista deja!");
                 }
             });
         });
@@ -154,12 +168,17 @@ public class LoginController {
         registerThread.start();
     }
 
+    /**
+     * Incarca ecranul principal dupa autentificare.
+     *
+     * @param fullName numele complet al utilizatorului
+     */
     private void incarcaDashboard(String fullName) {
         try {
             var resource = getClass().getResource("/interfata_drive/Dashboard.fxml");
 
             if (resource == null) {
-                throw new IOException("Dashboard.fxml nu a fost găsit!");
+                throw new IOException("Dashboard.fxml nu a fost gasit!");
             }
 
             FXMLLoader loader = new FXMLLoader(resource);
@@ -175,10 +194,16 @@ public class LoginController {
 
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert("Eroare", "Nu s-a putut încărca Dashboard-ul.");
+            showAlert("Eroare", "Nu s-a putut incarca Dashboard-ul.");
         }
     }
 
+    /**
+     * Afiseaza un mesaj simplu pentru utilizator.
+     *
+     * @param title titlul ferestrei
+     * @param message mesajul afisat
+     */
     private void showAlert(String title, String message) {
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle(title);

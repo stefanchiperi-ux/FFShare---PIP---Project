@@ -18,6 +18,9 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
+/**
+ * Serverul care primeste clienti, mesaje si fisiere.
+ */
 public class Server {
 
     private static final int MAX_PROFILE_IMAGE_PAYLOAD_BYTES = 2_100_000;
@@ -26,15 +29,29 @@ public class Server {
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
     private final Path serverFilesDirectory;
 
+    /**
+     * Creeaza serverul cu folderul implicit pentru fisiere.
+     *
+     * @param port portul pe care asculta serverul
+     */
     Server(int port) {
         this(port, Paths.get("server_files"));
     }
 
+    /**
+     * Creeaza serverul cu folder personalizat pentru fisiere.
+     *
+     * @param port portul pe care asculta serverul
+     * @param serverFilesDirectory folderul unde se salveaza fisierele
+     */
     Server(int port, Path serverFilesDirectory) {
         this.port = port;
         this.serverFilesDirectory = serverFilesDirectory;
     }
 
+    /**
+     * Porneste serverul si asteapta clienti.
+     */
     void start() {
         MessageDatabase.initDatabase();
 
@@ -53,14 +70,30 @@ public class Server {
         }
     }
 
+    /**
+     * Adauga un client in lista de clienti activi.
+     *
+     * @param client clientul conectat
+     */
     private void addClient(ClientHandler client) {
         clients.add(client);
     }
 
+    /**
+     * Sterge un client din lista de clienti activi.
+     *
+     * @param client clientul deconectat
+     */
     private void removeClient(ClientHandler client) {
         clients.remove(client);
     }
 
+    /**
+     * Cauta un client dupa username.
+     *
+     * @param username numele cautat
+     * @return clientul gasit sau null
+     */
     private ClientHandler findClient(String username) {
         for (ClientHandler client : clients) {
             if (client.getUsername().equals(username)) {
@@ -70,6 +103,12 @@ public class Server {
         return null;
     }
 
+    /**
+     * Trimite un mesaj tuturor clientilor.
+     *
+     * @param senderUsername expeditorul mesajului
+     * @param message textul mesajului
+     */
     private void broadcastMessage(String senderUsername, String message) {
         String fullMessage = "__MSG__|" + escape(senderUsername) + "|" + escape(message);
         for (ClientHandler client : clients) {
@@ -77,6 +116,11 @@ public class Server {
         }
     }
 
+    /**
+     * Trimite un mesaj de sistem tuturor clientilor.
+     *
+     * @param message mesajul de sistem
+     */
     private void broadcastServerMessage(String message) {
         String fullMessage = "__SERVER__|" + escape(message);
         for (ClientHandler client : clients) {
@@ -84,12 +128,23 @@ public class Server {
         }
     }
 
+    /**
+     * Trimite poza de profil actualizata tuturor clientilor.
+     *
+     * @param username utilizatorul pozei
+     * @param imageBase64 imaginea codata Base64
+     */
     private void broadcastProfile(String username, String imageBase64) {
         for (ClientHandler client : clients) {
             client.sendProfile(username, imageBase64);
         }
     }
 
+    /**
+     * Proceseaza cererile unui client conectat.
+     *
+     * @param clientSocket socketul clientului
+     */
     private void handleClient(Socket clientSocket) {
         ClientHandler client = null;
 
@@ -195,6 +250,13 @@ public class Server {
         }
     }
 
+    /**
+     * Citeste poza de profil primita de la client.
+     *
+     * @param in fluxul de intrare
+     * @return imaginea in format Base64
+     * @throws IOException daca pachetul este invalid
+     */
     private String readProfilePayload(DataInputStream in) throws IOException {
         int payloadSize = in.readInt();
 
@@ -207,6 +269,16 @@ public class Server {
         return new String(payload, StandardCharsets.UTF_8);
     }
 
+    /**
+     * Salveaza pe server fisierul primit de la client.
+     *
+     * @param in fluxul de intrare
+     * @param username utilizatorul care trimite fisierul
+     * @param fileName numele fisierului
+     * @param fileSize dimensiunea fisierului
+     * @return calea unde a fost salvat fisierul
+     * @throws IOException daca fisierul nu poate fi salvat
+     */
     private Path saveFileOnServer(
             DataInputStream in,
             String username,
@@ -239,6 +311,12 @@ public class Server {
         return outputPath;
     }
 
+    /**
+     * Intoarce lista fisierelor salvate pe server.
+     *
+     * @return lista de cai relative
+     * @throws IOException daca folderul nu poate fi citit
+     */
     List<String> getServerFilesList() throws IOException {
         List<String> fileNames = new ArrayList<>();
 
@@ -256,6 +334,13 @@ public class Server {
         return fileNames;
     }
 
+    /**
+     * Verifica si rezolva calea unui fisier cerut.
+     *
+     * @param requestedFile calea ceruta de client
+     * @return calea valida sau null
+     * @throws IOException daca apar erori la verificare
+     */
     Path resolveServerFile(String requestedFile) throws IOException {
         if (requestedFile == null || requestedFile.isBlank()) {
             return null;
@@ -271,6 +356,12 @@ public class Server {
         return requestedPath;
     }
 
+    /**
+     * Gaseste o cale libera pentru un fisier nou.
+     *
+     * @param originalPath calea dorita initial
+     * @return calea disponibila
+     */
     private Path getUniquePath(Path originalPath) {
         if (!Files.exists(originalPath)) {
             return originalPath;
@@ -304,6 +395,12 @@ public class Server {
         }
     }
 
+    /**
+     * Escapeaza textul pentru protocolul serverului.
+     *
+     * @param value textul original
+     * @return textul pregatit pentru trimitere
+     */
     private static String escape(String value) {
         if (value == null) {
             return "";
@@ -311,20 +408,39 @@ public class Server {
         return value.replace("\\", "\\\\").replace("|", "\\p").replace("\n", "\\n").replace("\r", "");
     }
 
+    /**
+     * Reprezinta un client conectat la server.
+     */
     private static class ClientHandler {
 
         private final String username;
         private final DataOutputStream out;
 
+        /**
+         * Creeaza handlerul pentru un client.
+         *
+         * @param username numele clientului
+         * @param out fluxul de iesire catre client
+         */
         public ClientHandler(String username, DataOutputStream out) {
             this.username = username;
             this.out = out;
         }
 
+        /**
+         * Intoarce numele clientului.
+         *
+         * @return username-ul clientului
+         */
         public String getUsername() {
             return username;
         }
 
+        /**
+         * Trimite un mesaj catre client.
+         *
+         * @param message mesajul trimis
+         */
         public synchronized void sendMessage(String message) {
             try {
                 out.writeUTF("MESSAGE");
@@ -335,6 +451,12 @@ public class Server {
             }
         }
 
+        /**
+         * Trimite o poza de profil catre client.
+         *
+         * @param username utilizatorul pozei
+         * @param imageBase64 imaginea codata Base64
+         */
         public synchronized void sendProfile(String username, String imageBase64) {
             byte[] profilePayload = imageBase64.getBytes(StandardCharsets.UTF_8);
 
@@ -353,6 +475,12 @@ public class Server {
             }
         }
 
+        /**
+         * Trimite catre client un fisier pentru descarcare.
+         *
+         * @param requestedFile calea ceruta initial
+         * @param file fisierul gasit pe server
+         */
         public synchronized void sendFileDownload(String requestedFile, Path file) {
             try (InputStream input = Files.newInputStream(file)) {
                 out.writeUTF("FILE_DOWNLOAD");
@@ -373,6 +501,12 @@ public class Server {
             }
         }
 
+        /**
+         * Trimite o eroare pentru descarcare.
+         *
+         * @param requestedFile fisierul cerut
+         * @param message mesajul de eroare
+         */
         public synchronized void sendDownloadError(String requestedFile, String message) {
             try {
                 out.writeUTF("DOWNLOAD_ERROR");
@@ -384,6 +518,11 @@ public class Server {
             }
         }
 
+        /**
+         * Trimite lista de fisiere catre client.
+         *
+         * @param files fisierele disponibile
+         */
         public synchronized void sendFileList(List<String> files) {
             try {
                 out.writeUTF("FILES_LIST");
@@ -400,6 +539,11 @@ public class Server {
         }
     }
     
+    /**
+     * Trimite lista actualizata de fisiere tuturor clientilor.
+     *
+     * @throws IOException daca lista nu poate fi citita
+     */
     private void broadcastFileList() throws IOException {
     	List<String> files = getServerFilesList();
 

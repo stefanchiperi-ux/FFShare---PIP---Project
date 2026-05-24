@@ -13,6 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Gestioneaza baza de date pentru mesaje si poze de profil.
+ */
 public class MessageDatabase {
     private static final String DEFAULT_DB_URL = "jdbc:sqlite:mesaje.db";
     private static String databaseUrl = DEFAULT_DB_URL;
@@ -26,14 +29,25 @@ public class MessageDatabase {
         }
     }
 
+    /**
+     * Schimba baza de date folosita in teste.
+     *
+     * @param databasePath calea bazei de date temporare
+     */
     static void useDatabaseForTesting(Path databasePath) {
         databaseUrl = "jdbc:sqlite:" + databasePath.toAbsolutePath();
     }
 
+    /**
+     * Reseteaza baza de date la fisierul implicit.
+     */
     static void resetDatabaseForTesting() {
         databaseUrl = DEFAULT_DB_URL;
     }
 
+    /**
+     * Creeaza tabelele pentru mesaje si profiluri.
+     */
     public static void initDatabase() {
         String messagesSql = "CREATE TABLE IF NOT EXISTS messages (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -57,6 +71,12 @@ public class MessageDatabase {
         }
     }
 
+    /**
+     * Salveaza un mesaj in baza de date.
+     *
+     * @param sender expeditorul mesajului
+     * @param message textul mesajului
+     */
     public static void saveMessage(String sender, String message) {
         String sql = "INSERT INTO messages(sender, message) VALUES(?, ?)";
 
@@ -70,6 +90,11 @@ public class MessageDatabase {
         }
     }
 
+    /**
+     * Intoarce toate mesajele in ordinea salvarii.
+     *
+     * @return lista de mesaje formatate pentru protocol
+     */
     public static List<String> getAllMessages() {
         List<String> messages = new ArrayList<>();
         String sql = "SELECT sender, message FROM messages ORDER BY id ASC";
@@ -88,6 +113,13 @@ public class MessageDatabase {
         return messages;
     }
 
+    /**
+     * Salveaza sau actualizeaza poza de profil.
+     *
+     * @param username numele utilizatorului
+     * @param imageBase64 imaginea codata Base64
+     * @return true daca imaginea a fost salvata
+     */
     public static boolean saveProfileImage(String username, String imageBase64) {
         if (!isValidImageBase64(imageBase64)) {
             return false;
@@ -108,6 +140,11 @@ public class MessageDatabase {
         }
     }
 
+    /**
+     * Intoarce toate pozele de profil valide.
+     *
+     * @return mapa cu username si imagine Base64
+     */
     public static Map<String, String> getAllProfileImages() {
         Map<String, String> profiles = new LinkedHashMap<>();
         String sql = "SELECT username, image_base64 FROM profiles ORDER BY username ASC";
@@ -130,6 +167,12 @@ public class MessageDatabase {
         return profiles;
     }
 
+    /**
+     * Verifica daca imaginea Base64 este valida.
+     *
+     * @param imageBase64 imaginea codata Base64
+     * @return true daca imaginea este PNG sau JPG valida
+     */
     private static boolean isValidImageBase64(String imageBase64) {
         if (imageBase64 == null || imageBase64.isBlank() || imageBase64.length() > MAX_PROFILE_IMAGE_BASE64_LENGTH) {
             return false;
@@ -143,6 +186,12 @@ public class MessageDatabase {
         }
     }
 
+    /**
+     * Verifica semnatura unui fisier PNG.
+     *
+     * @param imageBytes continutul imaginii
+     * @return true daca imaginea este PNG
+     */
     private static boolean isPng(byte[] imageBytes) {
         byte[] signature = new byte[] {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
@@ -159,6 +208,12 @@ public class MessageDatabase {
         return true;
     }
 
+    /**
+     * Verifica semnatura unui fisier JPEG.
+     *
+     * @param imageBytes continutul imaginii
+     * @return true daca imaginea este JPEG
+     */
     private static boolean isJpeg(byte[] imageBytes) {
         return imageBytes.length >= 3
                 && (imageBytes[0] & 0xFF) == 0xFF
@@ -166,6 +221,12 @@ public class MessageDatabase {
                 && (imageBytes[2] & 0xFF) == 0xFF;
     }
 
+    /**
+     * Escapeaza textul pentru protocolul de mesaje.
+     *
+     * @param value textul original
+     * @return textul pregatit pentru trimitere
+     */
     private static String escape(String value) {
         if (value == null) {
             return "";
