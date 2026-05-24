@@ -24,10 +24,15 @@ public class Server {
 
     private final int port;
     private final List<ClientHandler> clients = new CopyOnWriteArrayList<>();
-    private final Path serverFilesDirectory = Paths.get("server_files");
+    private final Path serverFilesDirectory;
 
     Server(int port) {
+        this(port, Paths.get("server_files"));
+    }
+
+    Server(int port, Path serverFilesDirectory) {
         this.port = port;
+        this.serverFilesDirectory = serverFilesDirectory;
     }
 
     void start() {
@@ -234,7 +239,7 @@ public class Server {
         return outputPath;
     }
 
-    private List<String> getServerFilesList() throws IOException {
+    List<String> getServerFilesList() throws IOException {
         List<String> fileNames = new ArrayList<>();
 
         if (!Files.exists(serverFilesDirectory)) {
@@ -251,7 +256,7 @@ public class Server {
         return fileNames;
     }
 
-    private Path resolveServerFile(String requestedFile) throws IOException {
+    Path resolveServerFile(String requestedFile) throws IOException {
         if (requestedFile == null || requestedFile.isBlank()) {
             return null;
         }
