@@ -5,14 +5,10 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -32,11 +28,8 @@ public class Client {
     private boolean running = false;
 
     private Consumer<String> onMessageReceived;
-    private Consumer<File> onFileReceived;
     private Consumer<List<String>> onFileListReceived;
     private final List<String> pendingMessages = new ArrayList<>();
-
-    private final Path downloadDirectory = Paths.get("received_files");
 
     public Client(String host, int port, String username) {
         this.host = host;
@@ -57,10 +50,6 @@ public class Client {
             }
             pendingMessages.clear();
         }
-    }
-
-    public void setOnFileReceived(Consumer<File> onFileReceived) {
-        this.onFileReceived = onFileReceived;
     }
 
     public void setOnFileListReceived(Consumer<List<String>> onFileListReceived) {
@@ -100,18 +89,6 @@ public class Client {
                         String imageBase64 = new String(profilePayload, StandardCharsets.UTF_8);
 
                         handleReceivedMessage("__PROFILE__|" + escape(profileUsername) + "|" + imageBase64);
-                    } else if (type.equals("FILE")) {
-                        String fileName = in.readUTF();
-                        long fileSize = in.readLong();
-
-                        File receivedFile = receiveFile(fileName, fileSize);
-                        System.out.println("File received: " + receivedFile.getAbsolutePath());
-
-                        if (onFileReceived != null) {
-                            onFileReceived.accept(receivedFile);
-                        }
-
-                        handleReceivedMessage("__SERVER__|File received: " + receivedFile.getName());
                     } else if (type.equals("FILES_LIST")) {
                         int count = in.readInt();
                         List<String> files = new ArrayList<>();
@@ -228,32 +205,6 @@ public class Client {
         }
     }
 
-    private File receiveFile(String fileName, long fileSize) throws IOException {
-        Files.createDirectories(downloadDirectory);
-
-        String safeFileName = Paths.get(fileName).getFileName().toString();
-        Path outputPath = getUniquePath(downloadDirectory.resolve(safeFileName));
-
-        try (FileOutputStream fos = new FileOutputStream(outputPath.toFile())) {
-            byte[] buffer = new byte[4096];
-            long remainingBytes = fileSize;
-
-            while (remainingBytes > 0) {
-                int bytesToRead = (int) Math.min(buffer.length, remainingBytes);
-                int bytesRead = in.read(buffer, 0, bytesToRead);
-
-                if (bytesRead == -1) {
-                    throw new EOFException("Connection closed before file was fully received.");
-                }
-
-                fos.write(buffer, 0, bytesRead);
-                remainingBytes -= bytesRead;
-            }
-        }
-
-        return outputPath.toFile();
-    }
-
     private byte[] readPayload(int maxSize) throws IOException {
         int payloadSize = in.readInt();
 
@@ -264,39 +215,6 @@ public class Client {
         byte[] payload = new byte[payloadSize];
         in.readFully(payload);
         return payload;
-    }
-
-    private Path getUniquePath(Path originalPath) {
-        if (!Files.exists(originalPath)) {
-            return originalPath;
-        }
-
-        String fileName = originalPath.getFileName().toString();
-        String name;
-        String extension;
-
-        int dotIndex = fileName.lastIndexOf('.');
-
-        if (dotIndex > 0) {
-            name = fileName.substring(0, dotIndex);
-            extension = fileName.substring(dotIndex);
-        } else {
-            name = fileName;
-            extension = "";
-        }
-
-        Path parent = originalPath.getParent();
-        int counter = 1;
-
-        while (true) {
-            Path newPath = parent.resolve(name + "_" + counter + extension);
-
-            if (!Files.exists(newPath)) {
-                return newPath;
-            }
-
-            counter++;
-        }
     }
 
     public boolean isConnected() {

@@ -1,6 +1,5 @@
 package interfata_drive;
 
-import client.Client;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;

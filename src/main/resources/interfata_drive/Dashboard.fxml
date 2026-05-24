@@ -39,7 +39,7 @@
                </children>
             </HBox>
             <Region HBox.hgrow="ALWAYS" />
-            <TextField prefHeight="40.0" prefWidth="480.0" promptText="cauta documente..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 15;" />
+            <TextField fx:id="searchField" prefHeight="40.0" prefWidth="480.0" promptText="cauta documente..." style="-fx-background-color: #F0F4F8; -fx-background-radius: 20; -fx-padding: 0 15;" />
             <Region HBox.hgrow="ALWAYS" />
             <Label fx:id="userNameLabel" prefHeight="22.0" prefWidth="201.0" text="Nume Prenume" textFill="#37474F">
                <font>
@@ -57,9 +57,6 @@
          </padding>
          <children>
             <Button fx:id="filesBtn" prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: #2962FF; -fx-text-fill: white; -fx-background-radius: 8;" text="Fisierele mele" />
-            <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Partajate cu mine" />
-            <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Recente" />
-            <Button prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Favorite" />
             <Button fx:id="profileBtn" prefHeight="45.0" prefWidth="220.0" style="-fx-background-color: transparent; -fx-text-fill: #607D8B;" text="Profil" />
             <Region VBox.vgrow="ALWAYS" />
             <Button fx:id="addFileBtn" prefHeight="50.0" prefWidth="220.0" style="-fx-background-color: white; -fx-border-color: #2962FF; -fx-border-radius: 25; -fx-background-radius: 25; -fx-text-fill: #2962FF;" text="+ Incarca fisier" />

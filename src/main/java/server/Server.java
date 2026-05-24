@@ -108,7 +108,7 @@ public class Server {
                 return;
             }
 
-            client = new ClientHandler(username, clientSocket, out);
+            client = new ClientHandler(username, out);
             addClient(client);
 
             System.out.println(username + " connected");
@@ -282,21 +282,15 @@ public class Server {
     private static class ClientHandler {
 
         private final String username;
-        private final Socket socket;
         private final DataOutputStream out;
 
-        public ClientHandler(String username, Socket socket, DataOutputStream out) {
+        public ClientHandler(String username, DataOutputStream out) {
             this.username = username;
-            this.socket = socket;
             this.out = out;
         }
 
         public String getUsername() {
             return username;
-        }
-
-        public Socket getSocket() {
-            return socket;
         }
 
         public synchronized void sendMessage(String message) {
