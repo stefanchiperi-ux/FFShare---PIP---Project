@@ -90,7 +90,7 @@ public class LoginController {
                 client.connect();
 
                 Session.setClient(client);
-                Session.setCurrentUser(new User(fullName));
+                Session.setCurrentUser(new User());
 
                 Platform.runLater(() -> {
                     loginBtn.setDisable(false);

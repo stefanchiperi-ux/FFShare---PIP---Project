@@ -7,15 +7,6 @@ import java.util.List;
 
 public class User {
 	private final List<UserFile> files = new ArrayList<>();
-	private String fullName;
-	
-	public User(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
 
     public void addFile(Path path) {
         files.add(new UserFile(path));
@@ -23,11 +14,5 @@ public class User {
 
     public List<UserFile> getFiles() {
         return Collections.unmodifiableList(files);
-    }
-
-    public List<String> getFilePaths() {
-        return files.stream()
-                .map(UserFile::getPathAsString)
-                .toList();
     }
 }

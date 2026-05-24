@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,11 +52,13 @@ public class DashboardController {
     @FXML private Label profileNameLabel;
     @FXML private ImageView profileImageView;
     @FXML private Button chooseProfileImageBtn;
+    @FXML private TextField searchField;
 
     private String currentUser;
     private final Map<String, Image> profileImages = new HashMap<>();
     private final ApiKeyStore apiKeyStore = new ApiKeyStore();
     private final GroqAiService groqAiService = new GroqAiService();
+    private List<String> allFiles = new ArrayList<>();
 
     @FXML
     public void initialize() {
@@ -66,7 +69,10 @@ public class DashboardController {
         }
         
         Session.getClient().setOnFileListReceived(files ->
-        Platform.runLater(() -> refreshFilesView(files)));
+        Platform.runLater(() -> {
+            allFiles = files;
+            refreshFilesView(allFiles);
+        }));
         Session.getClient().requestFileList();
 
         sendBtn.setOnAction(event -> sendMessageAction());
@@ -80,6 +86,7 @@ public class DashboardController {
         showFilesPage();
         refreshFilesView();
         messageList.getItems().add(ChatMessage.server("Scrie /ai urmat de intrebare pentru asistent sau /api key cheia_ta_groq pentru conectare."));
+        searchField.textProperty().addListener((obs, oldText, newText) -> refreshFilesView(allFiles));
     }
 
     public void setUserData(String fullName) {
@@ -522,9 +529,13 @@ public class DashboardController {
     
     private void refreshFilesView(List<String> files) {
         filesFlowPane.getChildren().clear();
+        String query = searchField.getText().toLowerCase().trim();
 
         for (String file : files) {
-            filesFlowPane.getChildren().add(createFileCard(file));
+            String fileName = file.substring(file.lastIndexOf("/") + 1).toLowerCase();
+            if (query.isEmpty() || fileName.contains(query)) {
+                filesFlowPane.getChildren().add(createFileCard(file));
+            }
         }
     }
 }
